@@ -1,0 +1,22 @@
+{
+  "name": "waypoint",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @waypoint/web",
+    "build": "npm run build --workspace @waypoint/web",
+    "lint": "npm run lint --workspace @waypoint/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "verify": "node scripts/verify-environment.mjs",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:psql": "docker compose exec db psql -U ${POSTGRES_USER:-waypoint} -d ${POSTGRES_DB:-waypoint}"
+  }
+}

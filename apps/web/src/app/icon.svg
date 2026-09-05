@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#181715"/>
+  <path d="M72,424 L176,288 L240,336 L336,176 L444,132"
+        fill="none" stroke="#D9D4C9" stroke-width="40"
+        stroke-linecap="round" stroke-linejoin="miter"/>
+  <!-- The ground-coloured stroke separates the marker from the track it sits on,
+       so the two do not merge into one shape at favicon sizes. -->
+  <circle cx="283" cy="264" r="58" fill="#E3762E" stroke="#181715" stroke-width="20"/>
+</svg>

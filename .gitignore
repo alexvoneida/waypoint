@@ -1,0 +1,38 @@
+# Product requirements and working notes — deliberately untracked
+docs/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test fixtures: personal photography and large GPS binaries
+fixtures/**
+!fixtures/**/
+!fixtures/**/.gitkeep
+!fixtures/README.md
+
+# Logs and caches
+*.log
+npm-debug.log*
+.eslintcache
+.turbo/
+
+# Editor and OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
