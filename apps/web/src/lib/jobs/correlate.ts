@@ -84,6 +84,11 @@ export type CorrelateEntryOutcome = { placed: number; unplaced: number };
  * patching them, which is what makes a retried or manually re-triggered
  * correlation safe (§6 -- `photo_locations` is a separate table from `photos`
  * for exactly this reason).
+ *
+ * Manual placements are the one exception to that delete-and-reinsert
+ * strategy. Correlation is re-runnable by design, but an author who has
+ * dragged a pin has given the system a more reliable answer than the
+ * algorithm can produce, and a re-run must not silently discard it.
  */
 export async function correlateEntry(entryId: string, userId: string): Promise<CorrelateEntryOutcome> {
   return withUser(userId, async (client) => {
@@ -125,12 +130,23 @@ export async function correlateEntry(entryId: string, userId: string): Promise<C
 
     const result = runCorrelate(track, photos);
 
+    const { rows: manualRows } = await client.query<{ photo_id: string }>(
+      `select pl.photo_id
+       from photo_locations pl
+       join photos p on p.id = pl.photo_id
+       where p.entry_id = $1 and pl.method = 'manual'`,
+      [entryId],
+    );
+    const manuallyPlacedPhotoIds = new Set(manualRows.map((row) => row.photo_id));
+
     await client.query(
-      `delete from photo_locations where photo_id in (select id from photos where entry_id = $1)`,
+      `delete from photo_locations
+       where photo_id in (select id from photos where entry_id = $1) and method <> 'manual'`,
       [entryId],
     );
 
     for (const placement of result.placed) {
+      if (manuallyPlacedPhotoIds.has(placement.photoId)) continue;
       await client.query(
         `insert into photo_locations
            (photo_id, geom, elevation_m, method, confidence, gap_seconds, applied_offset_s, distance_along_m)
@@ -156,8 +172,19 @@ export async function correlateEntry(entryId: string, userId: string): Promise<C
 
     // Unplaced photos get no photo_locations row and stay attached to the
     // entry exactly as they were -- inventing a location for them would be
-    // worse than showing none.
-    return { placed: result.placed.length, unplaced: result.unplaced.length };
+    // worse than showing none. A manually placed photo counts as placed
+    // regardless of whether the algorithm's own run also placed it: it has a
+    // location either way, and the algorithm's placement was skipped in favor
+    // of the author's.
+    const placedPhotoIds = new Set(result.placed.map((placement) => placement.photoId));
+    for (const photoId of manuallyPlacedPhotoIds) {
+      placedPhotoIds.add(photoId);
+    }
+    const unplacedPhotoIds = new Set(result.unplaced.map((photo) => photo.photoId));
+    for (const photoId of manuallyPlacedPhotoIds) {
+      unplacedPhotoIds.delete(photoId);
+    }
+    return { placed: placedPhotoIds.size, unplaced: unplacedPhotoIds.size };
   });
 }
 

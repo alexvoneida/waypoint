@@ -211,7 +211,10 @@ async function loadPhotos(client: PoolClient, entryId: string): Promise<EntryPho
      from photos ph
      left join photo_locations pl on pl.photo_id = ph.id
      where ph.entry_id = $1 and ph.status = 'ready' and ph.hidden = false
-     order by ph.captured_at asc nulls last, ph.sort_order asc nulls last, ph.created_at asc`,
+     -- A null sort_order is the default -- capture order. A set one is the
+     -- author's override, which is why it sorts ahead of capture time rather
+     -- than after it.
+     order by ph.sort_order asc nulls last, ph.captured_at asc nulls last, ph.created_at asc`,
     [entryId],
   );
 
