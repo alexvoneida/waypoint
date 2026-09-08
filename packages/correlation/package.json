@@ -1,0 +1,14 @@
+{
+  "name": "@waypoint/correlation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Places photographs on a GPS track by correlating capture times. No database, no DOM, no dependencies.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test --experimental-strip-types 'test/*.test.ts'",
+    "typecheck": "tsc --noEmit"
+  }
+}

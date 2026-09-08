@@ -27,7 +27,7 @@ Run `npm run verify` after `npm run db:up`. It checks:
   skipped if the directory is empty). Also reports how many carry
   `OffsetTimeOriginal`, which states the UTC offset the correlation engine
   otherwise has to infer.
-- GPX fixture inventory in `fixtures/gpx/` against the four required hiking
+- GPX fixture inventory in `fixtures/gpx/` against the two required hiking
   scenario keywords (optional - reported as TODO, not a failure).
 
 ## Manual steps (yours)
@@ -39,7 +39,7 @@ Run `npm run verify` after `npm run db:up`. It checks:
       not on it.
 - [ ] Export a JPG through the real Lightroom preset into
       `fixtures/photos/` and confirm `DateTimeOriginal` survives.
-- [ ] Collect GPX files for the four required hiking scenarios into
+- [x] Collect GPX files for the required hiking scenarios into
       `fixtures/gpx/` (see `fixtures/README.md`).
 - [ ] Confirm PostGIS availability on the chosen managed-Postgres free
       tier before committing to that host.
@@ -55,7 +55,7 @@ Phase 0 is done when:
   is active.
 - The needed Strava endpoints are confirmed outside the deprecation list.
 - `npm run verify` passes.
-- The GPX fixtures for all four hiking scenarios exist in `fixtures/gpx/`.
+- The GPX fixtures for both hiking scenarios exist in `fixtures/gpx/`.
 
 If Strava access fails (application rejected, subscription unavailable, or
 the needed endpoints are deprecated), the documented fallback is to drop

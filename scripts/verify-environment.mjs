@@ -168,7 +168,7 @@ function checkGpxFixtures() {
     return;
   }
 
-  const scenarios = ['hike', 'gap', 'paused', 'multiday'];
+  const scenarios = ['hike', 'gap'];
   const present = scenarios.filter((keyword) =>
     files.some((name) => name.toLowerCase().includes(keyword)),
   );

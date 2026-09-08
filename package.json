@@ -17,6 +17,8 @@
     "verify": "node scripts/verify-environment.mjs",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
-    "db:psql": "docker compose exec db psql -U ${POSTGRES_USER:-waypoint} -d ${POSTGRES_DB:-waypoint}"
+    "db:psql": "docker compose exec db psql -U ${POSTGRES_USER:-waypoint} -d ${POSTGRES_DB:-waypoint}",
+    "test": "npm run test --workspaces --if-present",
+    "correlate": "node packages/correlation/cli.ts"
   }
 }

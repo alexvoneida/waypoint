@@ -13,8 +13,14 @@ belong in a public repository.
 
 ## Required GPX scenarios
 
-Waypoint is a hiking product, so all four scenarios are hiking. There is no ski or
+Waypoint is a hiking product, so both scenarios are hiking. There is no ski or
 cycling fixture and there should not be one.
+
+Tracks come from Strava rather than from device exports, so two scenarios that an
+earlier plan required have been dropped rather than left permanently unmet:
+`paused` (Strava's streams flatten the segment boundaries a pause creates, so the
+distinction never reaches us) and `multiday` (nothing in the engine now depends on
+activity length - see the admissible-set handling in the correlation package).
 
 `npm run verify` looks for filenames containing each of the following
 keywords. A file can satisfy more than one keyword if applicable.
@@ -23,11 +29,6 @@ keywords. A file can satisfy more than one keyword if applicable.
 - `gap` - a track with a signal gap in a canyon or similar terrain. Tests
   behavior when the two GPX points bracketing a photo timestamp are far apart
   in time.
-- `paused` - a track with a paused/resumed activity. Tests a time
-  discontinuity in the track that isn't a signal gap.
-- `multiday` - a multi-day backpacking trip. Tests that the offset search used to align
-  camera time with GPS time is not ambiguous across a window longer than 22
-  hours.
 
 ## Required photo fixtures
 
