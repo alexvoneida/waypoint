@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { LngLatBoundsLike, Map } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { trackPositions, type TrackGeometry } from "@/lib/track-geojson";
 
 const TRACKS_SOURCE = "trail-tracks";
 const TRACKS_LAYER = "trail-tracks-line";
@@ -15,20 +16,20 @@ const TRACKS_LAYER = "trail-tracks-line";
 maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
 
 interface TrailMapProps {
-  tracks: GeoJSON.LineString[];
+  tracks: TrackGeometry[];
 }
 
-function tracksBounds(tracks: GeoJSON.LineString[]): LngLatBoundsLike {
+function tracksBounds(tracks: TrackGeometry[]): LngLatBoundsLike {
   const bounds = new maplibregl.LngLatBounds();
   for (const track of tracks) {
-    for (const position of track.coordinates) {
+    for (const position of trackPositions(track)) {
       bounds.extend([position[0]!, position[1]!]);
     }
   }
   return bounds;
 }
 
-function tracksGeojson(tracks: GeoJSON.LineString[]): GeoJSON.FeatureCollection<GeoJSON.LineString> {
+function tracksGeojson(tracks: TrackGeometry[]): GeoJSON.FeatureCollection<TrackGeometry> {
   return {
     type: "FeatureCollection",
     features: tracks.map((geometry) => ({ type: "Feature", properties: {}, geometry })),

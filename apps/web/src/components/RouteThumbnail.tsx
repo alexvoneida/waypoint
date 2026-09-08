@@ -1,3 +1,5 @@
+import { trackSegments, type TrackGeometry } from "@/lib/track-geojson";
+
 const VIEW_SIZE = 64;
 const PADDING = 4;
 
@@ -10,7 +12,12 @@ const PADDING = 4;
 // Projection is a plain equirectangular scale-to-fit: at thumbnail size
 // (a few dozen pixels) no hiking track spans enough latitude for that
 // approximation to visibly distort its shape.
-function projectPath(coordinates: GeoJSON.Position[]): string {
+// Segments, plural: a track clipped by the privacy radius is a
+// MultiLineString, and drawing it as one polyline would bridge the removed
+// stretch with a straight line -- reinstating on the thumbnail exactly the
+// geometry the clip took out.
+function projectPath(segments: GeoJSON.Position[][]): string {
+  const coordinates = segments.flat();
   const lons = coordinates.map((c) => c[0]!);
   const lats = coordinates.map((c) => c[1]!);
   const minLon = Math.min(...lons);
@@ -24,19 +31,24 @@ function projectPath(coordinates: GeoJSON.Position[]): string {
   const offsetX = (VIEW_SIZE - spanLon * scale) / 2;
   const offsetY = (VIEW_SIZE - spanLat * scale) / 2;
 
-  return coordinates
-    .map(([lon = 0, lat = 0], index) => {
-      const x = offsetX + (lon - minLon) * scale;
-      // SVG y grows downward; latitude grows northward, so it's flipped.
-      const y = offsetY + (maxLat - lat) * scale;
-      return `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
-    })
+  return segments
+    .map((segment) =>
+      segment
+        .map(([lon = 0, lat = 0], index) => {
+          const x = offsetX + (lon - minLon) * scale;
+          // SVG y grows downward; latitude grows northward, so it's flipped.
+          const y = offsetY + (maxLat - lat) * scale;
+          return `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+        })
+        .join(" "),
+    )
     .join(" ");
 }
 
-export function RouteThumbnail({ geojson }: { geojson: GeoJSON.LineString }) {
-  if (geojson.coordinates.length < 2) return null;
-  const d = projectPath(geojson.coordinates);
+export function RouteThumbnail({ geojson }: { geojson: TrackGeometry }) {
+  const segments = trackSegments(geojson).filter((segment) => segment.length >= 2);
+  if (segments.length === 0) return null;
+  const d = projectPath(segments);
 
   return (
     <svg

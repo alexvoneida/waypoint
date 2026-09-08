@@ -243,3 +243,147 @@ test("a lead photograph from another entry is rejected", async () => {
   );
   assert.equal(response.status, 400);
 });
+
+// A-4. The track laid down in createPublishedEntry runs from (-107.8, 38) to
+// (-107.81, 38.01) -- about 1.4 km. A 400 m radius on the first of those
+// covers the start and leaves the far end alone, which is the shape a home
+// trailhead has. A radius large enough to swallow the whole track would make
+// every assertion below pass for the wrong reason.
+const HOME = { lat: 38, lon: -107.8 };
+const RADIUS_M = 400;
+
+async function setPrivacyRadius(radiusM, center) {
+  const response = await patch(
+    "/api/settings/profile",
+    { privacyRadiusM: radiusM, privacyCenter: center },
+    account.token,
+  );
+  assert.equal(response.status, 200);
+}
+
+async function publicTrack(entryId) {
+  const { rows } = await asUser(null, (client) =>
+    client.query(
+      `select st_geometrytype(a.track_simplified) as kind,
+              st_length(a.track_simplified::geography) as length_m
+       from visible_entries e
+       join visible_activities a on a.id = e.activity_id
+       where e.id = $1`,
+      [entryId],
+    ),
+  );
+  return rows[0] ?? null;
+}
+
+test("the privacy radius trims the published track and restores it at zero", async () => {
+  const whole = await publicTrack(account.entryId);
+  assert.equal(whole.kind, "ST_LineString");
+
+  await setPrivacyRadius(RADIUS_M, HOME);
+  const trimmed = await publicTrack(account.entryId);
+  assert.ok(
+    trimmed.length_m < whole.length_m,
+    `the trimmed track must be shorter: ${trimmed.length_m} vs ${whole.length_m}`,
+  );
+
+  // Not merely shorter -- the trimmed stretch must be the one near home.
+  const { rows } = await asUser(null, (client) =>
+    client.query(
+      `select st_distance(a.track_simplified::geography,
+                          ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography) as gap_m
+       from visible_entries e
+       join visible_activities a on a.id = e.activity_id
+       where e.id = $1`,
+      [account.entryId, HOME.lon, HOME.lat],
+    ),
+  );
+  assert.ok(
+    rows[0].gap_m >= RADIUS_M * 0.95,
+    `published geometry must stay clear of home: ${rows[0].gap_m} m`,
+  );
+
+  await setPrivacyRadius(0, null);
+  const restored = await publicTrack(account.entryId);
+  assert.equal(restored.length_m.toFixed(3), whole.length_m.toFixed(3));
+});
+
+test("the owner's own read of the same activity is never trimmed", async () => {
+  await setPrivacyRadius(RADIUS_M, HOME);
+  try {
+    const { rows } = await asUser(account.id, (client) =>
+      client.query(
+        `select st_length(a.track_simplified::geography) as length_m
+         from entries e join activities a on a.id = e.activity_id
+         where e.id = $1`,
+        [account.entryId],
+      ),
+    );
+    const publicLength = (await publicTrack(account.entryId)).length_m;
+    assert.ok(
+      rows[0].length_m > publicLength,
+      "the radius hides a home from readers, not from the person who set it",
+    );
+  } finally {
+    await setPrivacyRadius(0, null);
+  }
+});
+
+test("a photograph inside the radius is excluded from public reads", async () => {
+  const photoId = await asUser(account.id, async (client) => {
+    const photo = await client.query(
+      `insert into photos (entry_id, checksum, key_original, status)
+       values ($1, decode(md5(random()::text), 'hex'), 'test/original.jpg', 'ready')
+       returning id`,
+      [account.entryId],
+    );
+    await client.query(
+      `insert into photo_locations
+         (photo_id, geom, method, confidence, applied_offset_s)
+       values ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography, 'interpolated', 'high', 0)`,
+      [photo.rows[0].id, HOME.lon, HOME.lat],
+    );
+    return photo.rows[0].id;
+  });
+
+  const visibleToPublic = async () => {
+    const { rows } = await asUser(null, (client) =>
+      client.query("select 1 from photos where id = $1", [photoId]),
+    );
+    return rows.length === 1;
+  };
+
+  assert.equal(await visibleToPublic(), true, "precondition: no radius set");
+
+  await setPrivacyRadius(RADIUS_M, HOME);
+  // §9 excludes the photograph itself, not only its pin: a frame that still
+  // appears while its neighbours plot on the map is its own kind of tell.
+  assert.equal(await visibleToPublic(), false);
+
+  await setPrivacyRadius(0, null);
+  assert.equal(await visibleToPublic(), true, "and it comes back when the radius is cleared");
+});
+
+test("an uncorrelated photograph survives a radius being set", async () => {
+  const photoId = await asUser(account.id, async (client) => {
+    const photo = await client.query(
+      `insert into photos (entry_id, checksum, key_original, status)
+       values ($1, decode(md5(random()::text), 'hex'), 'test/unplaced.jpg', 'ready')
+       returning id`,
+      [account.entryId],
+    );
+    return photo.rows[0].id;
+  });
+
+  await setPrivacyRadius(RADIUS_M, HOME);
+  try {
+    const { rows } = await asUser(null, (client) =>
+      client.query("select 1 from photos where id = $1", [photoId]),
+    );
+    // within_privacy_radius returns false, never null, for a photo with no
+    // location -- a null here would propagate through the policy's NOT and
+    // make every unplaced photograph vanish.
+    assert.equal(rows.length, 1, "a photo with no location is not inside the radius");
+  } finally {
+    await setPrivacyRadius(0, null);
+  }
+});

@@ -7,6 +7,8 @@ export interface AccountSettings {
   handle: string;
   displayName: string;
   profileVisibility: "public" | "private";
+  privacyRadiusM: number;
+  privacyCenter: { lat: number; lon: number } | null;
 }
 
 type Status = "idle" | "saving" | "saved" | "taken" | "invalid" | "error";
@@ -19,6 +21,12 @@ export function SettingsForm({ initial }: { initial: AccountSettings }) {
   const [handle, setHandle] = useState(initial.handle);
   const [displayName, setDisplayName] = useState(initial.displayName);
   const [visibility, setVisibility] = useState(initial.profileVisibility);
+  // Held as strings: an empty coordinate box is a state the form has to be
+  // able to be in, and a number-typed state would have to invent a 0 for it --
+  // which is a real place in the Gulf of Guinea, not an absent one.
+  const [radius, setRadius] = useState(String(initial.privacyRadiusM));
+  const [lat, setLat] = useState(initial.privacyCenter ? String(initial.privacyCenter.lat) : "");
+  const [lon, setLon] = useState(initial.privacyCenter ? String(initial.privacyCenter.lon) : "");
   const [status, setStatus] = useState<Status>("idle");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -28,7 +36,13 @@ export function SettingsForm({ initial }: { initial: AccountSettings }) {
       const response = await fetch("/api/settings/profile", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ handle, displayName, profileVisibility: visibility }),
+        body: JSON.stringify({
+          handle,
+          displayName,
+          profileVisibility: visibility,
+          privacyRadiusM: Number(radius) || 0,
+          privacyCenter: lat.trim() && lon.trim() ? { lat: Number(lat), lon: Number(lon) } : null,
+        }),
       });
       if (response.status === 409) return setStatus("taken");
       if (response.status === 400) return setStatus("invalid");
@@ -106,6 +120,50 @@ export function SettingsForm({ initial }: { initial: AccountSettings }) {
             label="Private"
             description="Only you can see your outings. Your name and handle stay visible, and comments you have left on other people's outings stay where they are."
           />
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Privacy radius
+        </legend>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          Published tracks are trimmed where they pass within this distance of the point below,
+          and photographs taken inside it are left off the public page. A radius of 0 turns this
+          off. Your own view of your outings is never trimmed.
+        </p>
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          <label className="text-sm">
+            <span className="block font-medium text-zinc-700 dark:text-zinc-300">Metres</span>
+            <input
+              type="number"
+              min={0}
+              step={10}
+              value={radius}
+              onChange={(event) => setRadius(event.target.value)}
+              className={FIELD_CLASS}
+            />
+          </label>
+          <label className="text-sm">
+            <span className="block font-medium text-zinc-700 dark:text-zinc-300">Latitude</span>
+            <input
+              type="number"
+              step="any"
+              value={lat}
+              onChange={(event) => setLat(event.target.value)}
+              className={FIELD_CLASS}
+            />
+          </label>
+          <label className="text-sm">
+            <span className="block font-medium text-zinc-700 dark:text-zinc-300">Longitude</span>
+            <input
+              type="number"
+              step="any"
+              value={lon}
+              onChange={(event) => setLon(event.target.value)}
+              className={FIELD_CLASS}
+            />
+          </label>
         </div>
       </fieldset>
 

@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
 import { readPublic, withUser } from "./db";
+import type { TrackGeometry } from "./track-geojson";
 
 export type Confidence = "high" | "medium" | "low";
 
@@ -46,7 +47,7 @@ export interface EntryPageData {
   authorHandle: string;
   authorDisplayName: string;
   stats: EntryStats;
-  trackGeojson: GeoJSON.LineString;
+  trackGeojson: TrackGeometry;
   elevation: ElevationPoint[];
   photos: EntryPhoto[];
 }
@@ -95,7 +96,7 @@ async function selectPublicEntry(
     `select ${ENTRY_COLUMNS}
      from visible_entries e
      join public_profiles p on p.id = e.user_id
-     join activities a on a.id = e.activity_id
+     join visible_activities a on a.id = e.activity_id
      where p.handle = $1 and e.slug = $2`,
     [handle, slug],
   );
@@ -129,7 +130,27 @@ interface ElevationDumpRow {
   dist_m: number;
 }
 
-async function loadElevationSeries(client: PoolClient, activityId: string): Promise<ElevationPoint[]> {
+// The public series comes from visible_elevation_series (0012), which drops
+// the points inside the author's privacy radius so the profile shows the same
+// gap the map does. It cannot be a read of the clipped view: locating a point
+// along a line needs a LineString, and a clipped track is a MultiLineString.
+async function loadVisibleElevationSeries(
+  client: PoolClient,
+  activityId: string,
+): Promise<ElevationPoint[]> {
+  const { rows } = await client.query<ElevationDumpRow>(
+    "select dist_m, ele from visible_elevation_series($1)",
+    [activityId],
+  );
+  return toSeries(rows);
+}
+
+// The owner's own view of their own activity, untrimmed -- the radius hides a
+// home from readers, not from the person who set it.
+async function loadOwnElevationSeries(
+  client: PoolClient,
+  activityId: string,
+): Promise<ElevationPoint[]> {
   const { rows } = await client.query<ElevationDumpRow>(
     `select
        st_z(pt.geom) as ele,
@@ -140,7 +161,10 @@ async function loadElevationSeries(client: PoolClient, activityId: string): Prom
      order by (pt.path)[1]`,
     [activityId],
   );
+  return toSeries(rows);
+}
 
+function toSeries(rows: ElevationDumpRow[]): ElevationPoint[] {
   const withElevation = rows.filter((row): row is { ele: number; dist_m: number } => row.ele != null);
   return downsample(withElevation, ELEVATION_TARGET_POINTS).map((row) => ({
     distanceM: row.dist_m,
@@ -223,13 +247,18 @@ export async function loadEntryPage(
   viewerId: string | null,
 ): Promise<EntryPageData | null> {
   return withUser(viewerId, async (client) => {
-    const row =
-      (await selectPublicEntry(client, handle, slug)) ??
-      (viewerId ? await selectOwnEntry(client, handle, slug, viewerId) : null);
+    const publicRow = await selectPublicEntry(client, handle, slug);
+    const row = publicRow ?? (viewerId ? await selectOwnEntry(client, handle, slug, viewerId) : null);
     if (!row) return null;
 
+    // Which of the two lookups answered decides which elevation source to
+    // read -- not a visibility decision repeated here, but the consequence of
+    // one already made: a row from visible_entries is a public read and gets
+    // the clipped series, a row from the owner fallback is not.
     const [elevation, photos] = await Promise.all([
-      loadElevationSeries(client, row.activity_id),
+      publicRow
+        ? loadVisibleElevationSeries(client, row.activity_id)
+        : loadOwnElevationSeries(client, row.activity_id),
       loadPhotos(client, row.id),
     ]);
 
@@ -247,7 +276,7 @@ export async function loadEntryPage(
         movingS: row.moving_s,
         elapsedS: row.elapsed_s,
       },
-      trackGeojson: JSON.parse(row.track_geojson) as GeoJSON.LineString,
+      trackGeojson: JSON.parse(row.track_geojson) as TrackGeometry,
       elevation,
       photos,
     };
@@ -263,7 +292,7 @@ export interface DiscoveryEntry {
   trailName: string | null;
   stats: EntryStats;
   likeCount: number;
-  trackGeojson: GeoJSON.LineString;
+  trackGeojson: TrackGeometry;
   leadPhoto: { id: string; blurHash: string | null; width: number | null; height: number | null } | null;
 }
 
@@ -301,7 +330,7 @@ function mapDiscoveryRow(row: DiscoveryEntryRow): DiscoveryEntry {
       elapsedS: row.elapsed_s,
     },
     likeCount: Number(row.like_count),
-    trackGeojson: JSON.parse(row.track_geojson) as GeoJSON.LineString,
+    trackGeojson: JSON.parse(row.track_geojson) as TrackGeometry,
     leadPhoto: row.lead_photo_id
       ? {
           id: row.lead_photo_id,
@@ -332,7 +361,7 @@ export async function loadDiscoveryEntries(limit: number): Promise<DiscoveryEntr
          e.lead_photo_id, lp.blur_hash as lead_blur_hash, lp.width as lead_width, lp.height as lead_height
        from visible_entries e
        join public_profiles p on p.id = e.user_id
-       join activities a on a.id = e.activity_id
+       join visible_activities a on a.id = e.activity_id
        left join trails t on t.id = e.trail_id
        left join photos lp on lp.id = e.lead_photo_id and lp.status = 'ready'
        order by e.published_at desc
@@ -415,14 +444,23 @@ async function loadProfileEntries(
      )
      select
        p.handle, c.slug, c.title, c.occurred_on::text as occurred_on, p.display_name,
+       coalesce(va.distance_m, oa.distance_m) as distance_m,
+       coalesce(va.ascent_m, oa.ascent_m) as ascent_m,
+       coalesce(va.moving_s, oa.moving_s) as moving_s,
+       coalesce(va.elapsed_s, oa.elapsed_s) as elapsed_s,
        t.name as trail_name,
-       a.distance_m, a.ascent_m, a.moving_s, a.elapsed_s,
        (select count(*) from likes l where l.entry_id = c.id) as like_count,
-       st_asgeojson(a.track_simplified) as track_geojson,
+       st_asgeojson(coalesce(va.track_simplified, oa.track_simplified)) as track_geojson,
        c.lead_photo_id, lp.blur_hash as lead_blur_hash, lp.width as lead_width, lp.height as lead_height
      from combined c
      join public_profiles p on p.id = c.user_id
-     join activities a on a.id = c.activity_id
+     -- Two sources, one row each at most, and which one answers is decided by
+     -- the same resolution the combined CTE above used, not by a branch here:
+     -- visible_activities returns the clipped track for anything a public
+     -- reader can see, and the base table is owner-only (0012), so it answers
+     -- only for the owner's own private work.
+     left join visible_activities va on va.id = c.activity_id
+     left join activities oa on oa.id = c.activity_id
      left join trails t on t.id = c.trail_id
      left join photos lp on lp.id = c.lead_photo_id and lp.status = 'ready'
      order by c.published_at desc`,

@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
 import { readPublic } from "./db";
+import type { TrackGeometry } from "./track-geojson";
 import type { EntryStats } from "./entries";
 
 export type TrailNameSource = "activity" | "osm" | "user";
@@ -18,7 +19,7 @@ export interface TrailVisit {
   title: string;
   stats: EntryStats;
   leadPhoto: TrailLeadPhoto | null;
-  trackGeojson: GeoJSON.LineString;
+  trackGeojson: TrackGeometry;
 }
 
 export interface TrailVisitGroup {
@@ -82,7 +83,7 @@ async function selectTrailVisits(client: PoolClient, trailId: string): Promise<V
        e.lead_photo_id, lp.blur_hash as lead_blur_hash, lp.width as lead_width, lp.height as lead_height
      from visible_entries e
      join public_profiles p on p.id = e.user_id
-     join activities a on a.id = e.activity_id
+     join visible_activities a on a.id = e.activity_id
      left join photos lp on lp.id = e.lead_photo_id and lp.status = 'ready'
      where e.trail_id = $1
      order by e.occurred_on desc, e.published_at desc`,
@@ -113,7 +114,7 @@ function groupByDate(rows: VisitRow[]): TrailVisitGroup[] {
             height: row.lead_height,
           }
         : null,
-      trackGeojson: JSON.parse(row.track_geojson) as GeoJSON.LineString,
+      trackGeojson: JSON.parse(row.track_geojson) as TrackGeometry,
     };
 
     const current = groups[groups.length - 1];

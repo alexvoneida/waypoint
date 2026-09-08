@@ -35,7 +35,16 @@ export default async function SettingsPage() {
       handle: string;
       display_name: string;
       profile_visibility: "public" | "private";
-    }>("select handle, display_name, profile_visibility from users where id = $1", [userId]);
+      privacy_radius_m: number;
+      privacy_lat: number | null;
+      privacy_lon: number | null;
+    }>(
+      `select handle, display_name, profile_visibility, privacy_radius_m,
+              st_y(privacy_center::geometry) as privacy_lat,
+              st_x(privacy_center::geometry) as privacy_lon
+       from users where id = $1`,
+      [userId],
+    );
     return rows[0] ?? null;
   });
 
@@ -53,6 +62,11 @@ export default async function SettingsPage() {
     handle: account.handle,
     displayName: account.display_name,
     profileVisibility: account.profile_visibility,
+    privacyRadiusM: account.privacy_radius_m,
+    privacyCenter:
+      account.privacy_lat != null && account.privacy_lon != null
+        ? { lat: account.privacy_lat, lon: account.privacy_lon }
+        : null,
   };
 
   return (

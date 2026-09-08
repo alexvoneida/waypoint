@@ -280,8 +280,18 @@ test('a visitor can read the photos and activity of a published public entry', a
   );
   assert.equal(photos.rows.length, 1);
 
-  const activity = await asUser(null, (client) =>
+  // 0012 took the permissive policy off activities and put public reads
+  // through visible_activities instead. The reason is that a row policy
+  // selects rows and cannot rewrite a column, so a readable base row is an
+  // unclipped track by construction -- the privacy radius could not be
+  // enforced while this table answered a visitor directly.
+  const baseActivity = await asUser(null, (client) =>
     client.query('select id from activities where id = $1', [alicePublished.activityId]),
+  );
+  assert.equal(baseActivity.rows.length, 0, 'the base table is owner-only, like entries');
+
+  const activity = await asUser(null, (client) =>
+    client.query('select id from visible_activities where id = $1', [alicePublished.activityId]),
   );
   assert.equal(activity.rows.length, 1);
 

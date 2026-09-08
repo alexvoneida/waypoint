@@ -6,11 +6,19 @@ import { withUser } from "@/lib/db";
 import { jsonError, jsonOk, parseBody } from "@/lib/http";
 import { accountPaths, purge } from "@/lib/revalidate";
 
+// A radius of 0 is how the feature is switched off (§6), so it is a valid
+// value rather than a missing one. The centre is nullable for the same
+// reason: clearing it is a thing the settings screen must be able to say.
 const bodySchema = z
   .object({
     handle: handleSchema.optional(),
     displayName: z.string().min(1).max(100).optional(),
     profileVisibility: visibilitySchema.optional(),
+    privacyRadiusM: z.number().int().min(0).max(20_000).optional(),
+    privacyCenter: z
+      .object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) })
+      .nullable()
+      .optional(),
   })
   .refine((body) => Object.values(body).some((value) => value !== undefined), {
     message: "Nothing to update",
@@ -22,6 +30,7 @@ const COLUMNS = {
   handle: "handle",
   displayName: "display_name",
   profileVisibility: "profile_visibility",
+  privacyRadiusM: "privacy_radius_m",
 } as const;
 
 export async function PATCH(request: NextRequest) {
@@ -40,6 +49,19 @@ export async function PATCH(request: NextRequest) {
     if (value === undefined) continue;
     values.push(value);
     assignments.push(`${column} = $${values.length}`);
+  }
+
+  // privacy_center is a geography column, so it is built rather than bound:
+  // the point is assembled from two bound numbers, never from interpolated
+  // text.
+  const { privacyCenter } = parsed.data;
+  if (privacyCenter === null) {
+    assignments.push("privacy_center = null");
+  } else if (privacyCenter) {
+    values.push(privacyCenter.lon, privacyCenter.lat);
+    assignments.push(
+      `privacy_center = ST_SetSRID(ST_MakePoint($${values.length - 1}, $${values.length}), 4326)::geography`,
+    );
   }
 
   try {

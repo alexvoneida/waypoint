@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import type { ElevationPoint, EntryPhoto } from "@/lib/entries";
+import type { TrackGeometry } from "@/lib/track-geojson";
 import { EntryMap, type FlyToRequest } from "./EntryMap";
 import { ElevationProfile } from "./ElevationProfile";
 import { PhotoStrip } from "./PhotoStrip";
 
 interface EntryExperienceProps {
-  trackGeojson: GeoJSON.LineString;
+  trackGeojson: TrackGeometry;
   elevation: ElevationPoint[];
   photos: EntryPhoto[];
 }

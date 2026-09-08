@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { LngLatBoundsLike, Map, MapLayerMouseEvent, Popup, GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { trackPositions, type TrackGeometry } from "@/lib/track-geojson";
 
 const TRACK_SOURCE = "track";
 const TRACK_LAYER = "track-line";
@@ -36,16 +37,19 @@ export interface FlyToRequest {
 }
 
 interface EntryMapProps {
-  geojson: GeoJSON.LineString;
+  geojson: TrackGeometry;
   pins: MapPin[];
   activePhotoId: string | null;
   onHoverPin: (id: string | null) => void;
   flyTo: FlyToRequest | null;
 }
 
-function trackBounds(geojson: GeoJSON.LineString): LngLatBoundsLike {
+// Positions, not coordinates: a track clipped by the privacy radius arrives
+// as a MultiLineString, and reading .coordinates off one would iterate
+// segments rather than points.
+function trackBounds(geojson: TrackGeometry): LngLatBoundsLike {
   const bounds = new maplibregl.LngLatBounds();
-  for (const position of geojson.coordinates) {
+  for (const position of trackPositions(geojson)) {
     bounds.extend([position[0]!, position[1]!]);
   }
   return bounds;
