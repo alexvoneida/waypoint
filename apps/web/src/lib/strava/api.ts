@@ -8,11 +8,14 @@ const API_BASE = "https://www.strava.com/api/v3";
 const REQUEST_TIMEOUT_MS = 20_000;
 
 export class StravaApiError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
+  // Explicit fields rather than TypeScript parameter properties: the
+  // scripts/ tests run this file through Node's type stripping, which cannot
+  // transform them.
+  readonly status: number;
+
+  constructor(status: number, message: string) {
     super(message);
+    this.status = status;
   }
 }
 
@@ -22,8 +25,11 @@ export class StravaApiError extends Error {
  * rather than only that it stopped.
  */
 export class StravaRateLimitError extends Error {
-  constructor(readonly resetAt: Date) {
+  readonly resetAt: Date;
+
+  constructor(resetAt: Date) {
     super(`Strava rate limit reached; resets at ${resetAt.toISOString()}`);
+    this.resetAt = resetAt;
   }
 }
 

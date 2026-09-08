@@ -74,7 +74,8 @@ export const stravaImportActivity = inngest.createFunction(
   },
 );
 
-async function importOne(userId: string, stravaId: string) {
+/** Exported for scripts/test-strava-live.mjs; see the note in strava-backfill.ts. */
+export async function importOne(userId: string, stravaId: string) {
   const cached = await withUser(userId, (client) => readCachedRow(client, userId, stravaId));
   if (!cached) {
     throw new StravaImportError("this activity is not in the cached listing");
@@ -109,11 +110,16 @@ async function importOne(userId: string, stravaId: string) {
       externalId: stravaId,
       localZone: summary.timezone ?? undefined,
       sport: toSport(summary.sportType),
-      // Strava's own measured figures, the only legitimate source for these
-      // two columns (§6). Everything else in the row is derived from the
-      // track geometry exactly as it is for an uploaded GPX.
+      // §5's statistics table: when the activity came from Strava, Strava's
+      // figures are authoritative and stored verbatim -- all four of them,
+      // not just the two a GPX cannot supply. Distance especially: summing a
+      // 1 Hz track point to point measured 13.5% longer than Strava's own
+      // figure on a real hike, because GPS jitter accumulates with sample
+      // rate. The computed value is right for a GPX and wrong here.
       reportedAscentM: summary.ascentM,
       reportedMovingS: summary.movingS,
+      reportedDistanceM: summary.distanceM,
+      reportedElapsedS: summary.elapsedS,
       track,
     });
 

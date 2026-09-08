@@ -42,6 +42,21 @@ export interface InsertActivityInput {
    */
   reportedAscentM?: number | null;
   reportedMovingS?: number | null;
+  /**
+   * Distance and elapsed time as reported by the source. Unlike the two
+   * above, these have a legitimate computed fallback (§5's statistics table
+   * says so for GPX), so they are optional in the ordinary sense: supplied,
+   * they win; absent, the geometry answers.
+   *
+   * Supplying them matters more than it looks. Summing a densely-sampled
+   * track point to point accumulates GPS jitter: measured against this
+   * author's own activities, a 4 s-interval track agrees with Strava to
+   * within 0.6%, while a 1 s-interval track over the same kind of terrain
+   * comes out 13.5% long. Strava's figure is smoothed and is the one §5
+   * makes authoritative.
+   */
+  reportedDistanceM?: number | null;
+  reportedElapsedS?: number | null;
 }
 
 /**
@@ -77,8 +92,8 @@ export async function insertActivity(
        ($1, $2, $8, $3, $9, $12, to_timestamp($4), to_timestamp($5),
         ST_GeomFromText($6, 4326),
         ST_SimplifyPreserveTopology(ST_Force2D(ST_GeomFromText($6, 4326)), 0.0001),
-        ST_Length(ST_GeomFromText($6, 4326)::geography),
-        $10, $11, $7)
+        coalesce($13::double precision, ST_Length(ST_GeomFromText($6, 4326)::geography)),
+        $10, $11, coalesce($14::int, $7))
      returning id`,
     [
       userId,
@@ -93,6 +108,8 @@ export async function insertActivity(
       input.reportedAscentM ?? null,
       input.reportedMovingS ?? null,
       input.sport ?? "hike",
+      input.reportedDistanceM ?? null,
+      input.reportedElapsedS ?? null,
     ],
   );
 

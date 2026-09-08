@@ -104,7 +104,12 @@ interface PageOutcome {
   rateLimitedUntil: string | null;
 }
 
-async function fetchAndStorePage(userId: string, before: Date | null): Promise<PageOutcome> {
+/**
+ * Exported so scripts/test-strava-live.mjs can drive one real page against
+ * the real API and database. The job body above is Inngest's to run; this is
+ * the part worth proving against Strava itself.
+ */
+export async function fetchAndStorePage(userId: string, before: Date | null): Promise<PageOutcome> {
   let activities: StravaSummaryActivity[];
   try {
     const accessToken = await withUser(userId, (client) => getAccessToken(client, userId));
