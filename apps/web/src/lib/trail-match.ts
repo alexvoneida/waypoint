@@ -112,6 +112,7 @@ async function foundTrail(
 
   await insertTrailLink(client, trailId, activityId, 1, 1, "auto");
   await client.query("update entries set trail_id = $1 where activity_id = $2", [trailId, activityId]);
+
   return trailId;
 }
 

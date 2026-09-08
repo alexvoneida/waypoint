@@ -18,8 +18,21 @@ export const trailMatch = inngest.createFunction(
   { id: "trail-match", retries: 3, triggers: [{ event: "activity/created" }] },
   async ({ event, step }) => {
     const { activityId, userId } = event.data as ActivityEventData;
-    return step.run("match-trail", () =>
+    const outcome = await step.run("match-trail", () =>
       withUser(userId, (client) => matchActivityToTrail(client, activityId)),
     );
+
+    // Sent after the matching transaction has committed, never from inside it.
+    // An event that escapes before commit names a trail that does not exist
+    // yet, and if that transaction then rolls back it names one that never
+    // will -- the naming job would retry three times against nothing.
+    if (outcome.classification === "founded") {
+      await step.sendEvent("queue-trail-name", {
+        name: "trail/founded",
+        data: { trailId: outcome.trailId, activityId, userId },
+      });
+    }
+
+    return outcome;
   },
 );
