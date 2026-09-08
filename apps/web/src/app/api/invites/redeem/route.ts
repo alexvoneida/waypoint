@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { NextRequest } from "next/server";
+import { handleSchema } from "@/lib/account";
 import { withUser } from "@/lib/db";
 import { createSession, hashPassword, sessionCookieOptions, SESSION_COOKIE_NAME, SESSION_LIFETIME_SECONDS } from "@/lib/auth";
 import { clientIp, jsonError, jsonOk, parseBody } from "@/lib/http";
@@ -8,7 +9,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 
 const bodySchema = z.object({
   code: z.string().min(1),
-  handle: z.string().min(2).max(32),
+  handle: handleSchema,
   email: z.string().email(),
   displayName: z.string().min(1).max(100),
   password: z.string().min(12),

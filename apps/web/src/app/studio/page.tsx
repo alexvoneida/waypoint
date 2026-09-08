@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getViewerFromCookies } from "@/lib/auth";
 import { withUser } from "@/lib/db";
 import { loadConnectionSummary } from "@/lib/strava/summary";
+import { StudioShell } from "./shell";
 import { SignInForm } from "./sign-in-form";
 import { StravaPanel } from "./strava-panel";
 
@@ -20,14 +21,14 @@ export default async function StudioPage() {
 
   if (!userId) {
     return (
-      <Shell>
+      <StudioShell current="/studio">
         <p className="mt-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
           Sign in to import activities and prepare entries.
         </p>
         <div className="mt-8">
           <SignInForm />
         </div>
-      </Shell>
+      </StudioShell>
     );
   }
 
@@ -52,7 +53,7 @@ export default async function StudioPage() {
   const drafts = Number(account?.drafts ?? 0);
 
   return (
-    <Shell>
+    <StudioShell current="/studio">
       <p className="mt-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
         Signed in as {account?.display_name ?? "your account"}
         {account ? ` (@${account.handle})` : ""}. {drafts} draft
@@ -75,17 +76,6 @@ export default async function StudioPage() {
           </Link>
         ) : null}
       </section>
-    </Shell>
-  );
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mx-auto max-w-3xl px-6 py-16 sm:px-8">
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-        Studio
-      </h1>
-      {children}
-    </div>
+    </StudioShell>
   );
 }
