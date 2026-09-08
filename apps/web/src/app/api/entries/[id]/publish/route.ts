@@ -114,12 +114,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // exactly when the trail's count can change. An entry with no trail yet
     // -- trail.match has not run, or has not been triggered -- has nothing to
     // recount.
+    let trailSlug: string | null = null;
     if (entry.trail_id) {
       await recountTrailEntries(client, entry.trail_id);
+      const { rows: trailRows } = await client.query<{ slug: string }>(
+        "select slug from trails where id = $1",
+        [entry.trail_id],
+      );
+      trailSlug = trailRows[0]?.slug ?? null;
     }
 
     const url = await publicUrlFor(client, userId, slug);
-    return { notFound: false as const, id: entry.id, slug, url };
+    return { notFound: false as const, id: entry.id, slug, url, trailSlug };
   });
 
   if (result.notFound) {
@@ -128,6 +134,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
   revalidatePath(result.url);
   revalidatePath("/");
+  // The trail page is built from visible_entries too, so a newly published
+  // visit is exactly the other place this request just changed what a public
+  // reader sees.
+  if (result.trailSlug) {
+    revalidatePath(`/t/${result.trailSlug}`);
+  }
 
   return jsonOk({ id: result.id, slug: result.slug, url: result.url });
 }
