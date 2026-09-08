@@ -62,6 +62,43 @@ function toNaiveTimestampLiteral(exifDateTime: string): string {
   return `${datePart.replaceAll(":", "-")} ${timePart}`;
 }
 
+// Leaves camera_id null when Make or Model is absent -- a photo from an
+// unidentifiable body still correlates, it just never gets a stored offset
+// applied. Make and Model alone (no serial) is still a usable identity: see
+// the camera_profiles_identity index in 0014, which is what makes this
+// upsert's ON CONFLICT target valid for a null body_serial too.
+async function upsertCameraProfile(
+  client: PoolClient,
+  userId: string,
+  tags: Record<string, unknown>,
+): Promise<string | null> {
+  const make = tags.Make as string | undefined;
+  const model = tags.Model as string | undefined;
+  if (!make || !model) return null;
+  const bodySerial = (tags.BodySerialNumber as string | undefined) ?? null;
+
+  // `do update set make = excluded.make` is a no-op assignment, not a real
+  // change -- it exists only so the statement counts as an update on
+  // conflict, which is what makes `returning id` hand back the existing
+  // row's id. `do nothing` would return no row at all on conflict, leaving
+  // this photo permanently unattached to a camera it has already been
+  // matched to once.
+  //
+  // A freshly inserted row's clock_offset_s defaults to 0 and offset_source
+  // to 'assumed' (0002's column defaults): the body is now known but
+  // uncalibrated, and correlation applying a 0 offset behaves identically to
+  // applying none, so a photo from a brand-new profile places exactly as it
+  // would have with no camera_id at all.
+  const { rows } = await client.query<{ id: string }>(
+    `insert into camera_profiles (user_id, make, model, body_serial)
+     values ($1, $2, $3, $4)
+     on conflict (user_id, make, model, coalesce(body_serial, '')) do update set make = excluded.make
+     returning id`,
+    [userId, make, model, bodySerial],
+  );
+  return rows[0]?.id ?? null;
+}
+
 export type ExifExtractOutcome = { status: "processing" } | { status: "failed" };
 
 export async function extractExifForPhoto(photoId: string, userId: string): Promise<ExifExtractOutcome> {
@@ -98,6 +135,11 @@ export async function extractExifForPhoto(photoId: string, userId: string): Prom
         ? { latitude: gpsTags.latitude as number, longitude: gpsTags.longitude as number }
         : null;
 
+    // Make/model/serial are deliberately left out of exifSummary. §8 strips
+    // BodySerialNumber from everything public because a serial uniquely
+    // identifies a body across every photograph it has ever taken -- that
+    // identity belongs only in camera_profiles, which sits behind
+    // camera_profiles_own and is never read on a public path.
     const exifSummary = {
       lens: (tags.LensModel as string) ?? null,
       focalLength: (tags.FocalLength as number) ?? null,
@@ -108,11 +150,13 @@ export async function extractExifForPhoto(photoId: string, userId: string): Prom
       gps,
     };
 
+    const cameraId = await upsertCameraProfile(client, userId, tags);
+
     await client.query(
       `update photos
-         set captured_naive = $2, exif = $3::jsonb, status = 'processing'
+         set captured_naive = $2, exif = $3::jsonb, status = 'processing', camera_id = $4
        where id = $1`,
-      [photoId, toNaiveTimestampLiteral(rawTimestamp), JSON.stringify(exifSummary)],
+      [photoId, toNaiveTimestampLiteral(rawTimestamp), JSON.stringify(exifSummary), cameraId],
     );
 
     return { status: "processing" };

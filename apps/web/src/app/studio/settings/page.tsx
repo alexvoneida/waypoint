@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getViewerFromCookies } from "@/lib/auth";
 import { withUser } from "@/lib/db";
 import { StudioShell } from "../shell";
+import { CameraList, type CameraProfile } from "./camera-list";
 import { SettingsForm, type AccountSettings } from "./settings-form";
 
 // Session-gated and per-request, for the same reason /studio is: this page
@@ -58,6 +59,18 @@ export default async function SettingsPage() {
     );
   }
 
+  const cameras = await withUser(userId, async (client) => {
+    const { rows } = await client.query<CameraProfile>(
+      `select cp.id, cp.make, cp.model, cp.body_serial, cp.clock_offset_s, cp.offset_source,
+              cp.calibrated_at::text as calibrated_at,
+              (select count(*) from photos p where p.camera_id = cp.id) as photo_count
+       from camera_profiles cp where cp.user_id = $1
+       order by cp.make, cp.model`,
+      [userId],
+    );
+    return rows;
+  });
+
   const initial: AccountSettings = {
     handle: account.handle,
     displayName: account.display_name,
@@ -77,6 +90,15 @@ export default async function SettingsPage() {
         </h2>
         <div className="mt-4">
           <SettingsForm initial={initial} />
+        </div>
+      </section>
+
+      <section className="mt-12">
+        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          Cameras
+        </h2>
+        <div className="mt-4">
+          <CameraList cameras={cameras} />
         </div>
       </section>
     </StudioShell>
