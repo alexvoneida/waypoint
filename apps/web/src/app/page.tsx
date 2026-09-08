@@ -12,11 +12,9 @@ export default async function Home() {
   const entries = await loadDiscoveryEntries(DISCOVERY_ENTRY_LIMIT);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-16 sm:px-8">
+    <div className="mx-auto max-w-5xl px-6 py-16 sm:px-8 sm:py-20">
       <header className="max-w-2xl">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Waypoint
-        </h1>
+        <h1 className="text-page-title text-zinc-900 dark:text-zinc-50">Waypoint</h1>
         <p className="mt-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
           A dedicated camera records the best photographs of a hike and the
           worst metadata about it. Waypoint correlates each photograph&apos;s
@@ -26,7 +24,7 @@ export default async function Home() {
       </header>
 
       {entries.length > 0 ? (
-        <ul className="mt-12 grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-14 grid grid-cols-1 gap-x-6 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
           {entries.map((entry, index) => (
             <li key={`${entry.handle}/${entry.slug}`}>
               <EntryCard entry={entry} showAuthor priority={index === 0} />
@@ -34,8 +32,9 @@ export default async function Home() {
           ))}
         </ul>
       ) : (
-        <p className="mt-12 text-base text-zinc-500 dark:text-zinc-400">
-          No entries have been published yet.
+        <p className="mt-14 max-w-md text-base leading-7 text-zinc-500 dark:text-zinc-400">
+          Nobody has published an outing yet. Once someone does, it will show
+          up here, newest first.
         </p>
       )}
     </div>

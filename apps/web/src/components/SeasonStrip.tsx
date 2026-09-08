@@ -30,8 +30,10 @@ export function SeasonStrip({ months }: { months: number[] }) {
             key={month}
             title={name}
             aria-label={isPresent ? name : `${name}, no visits`}
-            className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-medium tabular-nums ${
-              isPresent ? "bg-[var(--accent)] text-white" : "text-zinc-400 dark:text-zinc-600"
+            className={`text-figures flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-medium ${
+              isPresent
+                ? "bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900"
+                : "text-zinc-400 dark:text-zinc-600"
             }`}
           >
             <span aria-hidden>{label}</span>

@@ -22,7 +22,7 @@ export default async function StudioPage() {
   if (!userId) {
     return (
       <StudioShell current="/studio">
-        <p className="mt-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
+        <p className="mt-8 text-base leading-7 text-zinc-600 dark:text-zinc-400">
           Sign in to import activities and prepare entries.
         </p>
         <div className="mt-8">
@@ -54,16 +54,14 @@ export default async function StudioPage() {
 
   return (
     <StudioShell current="/studio">
-      <p className="mt-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
+      <p className="text-figures mt-8 text-base leading-7 text-zinc-600 dark:text-zinc-400">
         Signed in as {account?.display_name ?? "your account"}
         {account ? ` (@${account.handle})` : ""}. {drafts} draft
         {drafts === 1 ? "" : "s"} waiting.
       </p>
 
       <section className="mt-12">
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Strava
-        </h2>
+        <h2 className="text-section-heading text-zinc-900 dark:text-zinc-50">Strava</h2>
         <div className="mt-4">
           <StravaPanel connection={connection} />
         </div>

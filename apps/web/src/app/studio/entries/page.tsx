@@ -56,14 +56,12 @@ export default async function StudioEntriesPage() {
 
   return (
     <StudioShell current="/studio/entries">
-      <section className="mt-10">
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Outings
-        </h2>
+      <section className="mt-8">
+        <h2 className="text-section-heading text-zinc-900 dark:text-zinc-50">Outings</h2>
 
         {entries.length === 0 ? (
-          <p className="mt-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
-            Imported Strava activities appear here as drafts.{" "}
+          <p className="mt-4 max-w-md text-base leading-7 text-zinc-600 dark:text-zinc-400">
+            No outings yet. Imported Strava activities appear here as drafts.{" "}
             <Link href="/studio/strava" className="underline underline-offset-4">
               Import an activity
             </Link>{" "}
@@ -80,7 +78,7 @@ export default async function StudioEntriesPage() {
                   >
                     {entry.title}
                   </Link>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                  <div className="text-figures mt-1 flex flex-wrap items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
                     <span>{formatOccurredOn(entry.occurred_on)}</span>
                     <span>&middot;</span>
                     <span>

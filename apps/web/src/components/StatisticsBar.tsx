@@ -33,13 +33,13 @@ export function buildStats(stats: EntryStats): Stat[] {
 export function StatisticsBar({ stats }: { stats: EntryStats }) {
   const items = buildStats(stats);
   return (
-    <dl className="flex flex-wrap gap-x-10 gap-y-4">
+    <dl className="flex flex-wrap gap-x-8 gap-y-4 sm:gap-x-10">
       {items.map((item) => (
         <div key={item.label}>
           <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             {item.label}
           </dt>
-          <dd className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+          <dd className="text-figures mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl dark:text-zinc-50">
             {item.value}
           </dd>
         </div>

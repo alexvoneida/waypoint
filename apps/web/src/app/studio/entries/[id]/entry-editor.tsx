@@ -72,10 +72,8 @@ export function EntryEditor({
   const selectedPhoto = photos.find((photo) => photo.id === selectedPhotoId) ?? null;
 
   return (
-    <div className="mt-8 space-y-12">
-      <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-        {entry.title}
-      </h2>
+    <div className="mt-8 space-y-14">
+      <h2 className="text-card-title text-zinc-900 dark:text-zinc-50">{entry.title}</h2>
 
       <DetailsSection entry={entry} />
 
@@ -127,7 +125,7 @@ function DetailsSection({ entry }: { entry: EditorEntry }) {
 
   return (
     <section>
-      <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Details</h3>
+      <h3 className="text-subsection-heading text-zinc-900 dark:text-zinc-50">Details</h3>
       <form onSubmit={handleSubmit} className="mt-4 max-w-md space-y-6" noValidate>
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -265,7 +263,7 @@ function PublishSection({ entry }: { entry: EditorEntry }) {
 
   return (
     <section>
-      <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Publish</h3>
+      <h3 className="text-subsection-heading text-zinc-900 dark:text-zinc-50">Publish</h3>
       {publishedUrl ? (
         <div className="mt-3 space-y-1">
           <a
@@ -359,31 +357,33 @@ function PhotographsSection({
 
   return (
     <section>
-      <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Photographs</h3>
+      <h3 className="text-subsection-heading text-zinc-900 dark:text-zinc-50">Photographs</h3>
       <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
         A hidden photograph stays attached to this outing but is left off the public page.
       </p>
 
       <ul className="mt-4 divide-y divide-zinc-200 dark:divide-zinc-800">
         {photos.map((photo, index) => (
-          <li key={photo.id} className="flex flex-wrap items-center gap-4 py-4">
-            {/* eslint-disable-next-line @next/next/no-img-element -- served through the entry-scoped /i route */}
-            <img
-              src={`/i/${photo.id}/thumb`}
-              alt=""
-              width={96}
-              height={96}
-              loading="lazy"
-              className="h-24 w-24 shrink-0 rounded-sm object-cover"
-            />
+          <li key={photo.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element -- served through the entry-scoped /i route */}
+              <img
+                src={`/i/${photo.id}/thumb`}
+                alt=""
+                width={96}
+                height={96}
+                loading="lazy"
+                className="h-20 w-20 shrink-0 rounded-sm object-cover sm:h-24 sm:w-24"
+              />
 
-            <div className="min-w-0 flex-1 text-sm">
-              <p className="text-zinc-600 dark:text-zinc-400">
-                {photo.method ? `Placed by ${photo.method} (${photo.confidence})` : "Not placed"}
-              </p>
-              {currentLeadPhotoId === photo.id ? (
-                <p className="mt-1 text-zinc-500 dark:text-zinc-400">Lead photo</p>
-              ) : null}
+              <div className="min-w-0 flex-1 text-sm">
+                <p className="text-zinc-600 dark:text-zinc-400">
+                  {photo.method ? `Placed by ${photo.method} (${photo.confidence})` : "Not placed"}
+                </p>
+                {currentLeadPhotoId === photo.id ? (
+                  <p className="mt-1 text-zinc-500 dark:text-zinc-400">Lead photo</p>
+                ) : null}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -545,7 +545,7 @@ function PinCorrectionSection({
 
   return (
     <section>
-      <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Correct pin</h3>
+      <h3 className="text-subsection-heading text-zinc-900 dark:text-zinc-50">Correct pin</h3>
       <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
         The pin snaps to the nearest point on the recorded track. A corrected pin is kept even if
         correlation runs again.

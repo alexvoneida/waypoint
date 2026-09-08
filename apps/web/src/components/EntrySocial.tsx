@@ -152,9 +152,7 @@ export function EntrySocial({ entryId }: { entryId: string }) {
     // for the eventual content instead of letting it shift the layout in
     // once the fetch resolves (PRD §7).
     <div className="min-h-32">
-      <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-        Responses
-      </h2>
+      <h2 className="text-section-heading text-zinc-900 dark:text-zinc-50">Responses</h2>
 
       {status === "loading" && (
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">Loading...</p>
@@ -162,7 +160,7 @@ export function EntrySocial({ entryId }: { entryId: string }) {
 
       {status === "error" && (
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
-          Could not load likes and comments.
+          Likes and comments could not be loaded. Reloading the page usually fixes this.
         </p>
       )}
 
@@ -197,7 +195,11 @@ export function EntrySocial({ entryId }: { entryId: string }) {
           {social.commentsOpen && (
             <div className="space-y-4">
               {social.comments.length === 0 ? (
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">No comments yet.</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {social.canInteract
+                    ? "No comments yet. Be the first to leave one."
+                    : "No comments yet."}
+                </p>
               ) : (
                 <ul className="space-y-4">
                   {social.comments.map((comment) => (
@@ -269,7 +271,7 @@ function CommentRow({
         <Link href={`/@${comment.authorHandle}`} className="underline underline-offset-2">
           @{comment.authorHandle}
         </Link>{" "}
-        · {formatCommentDate(comment.createdAt)}
+        · <span className="text-figures">{formatCommentDate(comment.createdAt)}</span>
         {comment.canDelete && (
           <>
             {" "}

@@ -67,16 +67,14 @@ export default async function EntryPage({
   if (!entry) notFound();
 
   return (
-    <article className="mx-auto max-w-5xl px-6 py-12 sm:px-8">
-      <header className="mb-10">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+    <article className="mx-auto max-w-5xl px-6 py-12 sm:px-8 sm:py-16">
+      <header className="mb-12 sm:mb-16">
+        <p className="text-figures text-sm text-zinc-500 dark:text-zinc-400">
           {formatOccurredOn(entry.occurredOn)} · {entry.authorDisplayName}
         </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl dark:text-zinc-50">
-          {entry.title}
-        </h1>
+        <h1 className="text-entry-title mt-2 text-zinc-900 dark:text-zinc-50">{entry.title}</h1>
         {entry.notes && (
-          <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600 dark:text-zinc-400">
+          <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-600 dark:text-zinc-400">
             {entry.notes}
           </p>
         )}
@@ -91,7 +89,7 @@ export default async function EntryPage({
         photos={entry.photos}
       />
 
-      <section className="mt-16">
+      <section className="mt-16 max-w-2xl sm:mt-20">
         <EntrySocial entryId={entry.id} />
       </section>
     </article>

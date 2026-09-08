@@ -284,18 +284,18 @@ export function ActivitySelector() {
                     </span>
                   ) : null}
                 </td>
-                <td className="py-3 pr-4 whitespace-nowrap text-zinc-600 dark:text-zinc-400">
+                <td className="text-figures py-3 pr-4 whitespace-nowrap text-zinc-600 dark:text-zinc-400">
                   {formatLocalDate(row)}
                 </td>
-                <td className="py-3 pr-4 text-right whitespace-nowrap text-zinc-600 dark:text-zinc-400">
+                <td className="text-figures py-3 pr-4 text-right whitespace-nowrap text-zinc-600 dark:text-zinc-400">
                   {formatDistance(row.distanceM)}
                 </td>
-                <td className="py-3 pr-4 text-right whitespace-nowrap text-zinc-600 dark:text-zinc-400">
+                <td className="text-figures py-3 pr-4 text-right whitespace-nowrap text-zinc-600 dark:text-zinc-400">
                   {/* An em dash, never a zero: an absent figure is honest and
                       a fabricated one is not (§6). */}
                   {row.ascentM === null ? "—" : formatElevation(row.ascentM)}
                 </td>
-                <td className="py-3 text-right whitespace-nowrap text-zinc-600 dark:text-zinc-400">
+                <td className="text-figures py-3 text-right whitespace-nowrap text-zinc-600 dark:text-zinc-400">
                   {formatDuration(row.movingS ?? row.elapsedS)}
                 </td>
               </tr>
@@ -313,7 +313,7 @@ export function ActivitySelector() {
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-figures text-sm text-zinc-500 dark:text-zinc-400">
           {data.total === 0
             ? "No activities"
             : `${offset + 1}–${Math.min(offset + PAGE_SIZE, data.total)} of ${data.total}`}

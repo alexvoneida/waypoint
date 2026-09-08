@@ -30,8 +30,8 @@ export function TrailVisitCard({
         ) : (
           <div className="aspect-[3/2] rounded-sm bg-zinc-100 dark:bg-zinc-900" />
         )}
-        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">@{visit.authorHandle}</p>
-        <h3 className="mt-1 text-lg font-medium text-zinc-900 group-hover:text-[var(--accent)] dark:text-zinc-50">
+        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">@{visit.authorHandle}</p>
+        <h3 className="text-card-title mt-1 text-zinc-900 group-hover:text-[var(--accent)] dark:text-zinc-50">
           {visit.title}
         </h3>
       </Link>

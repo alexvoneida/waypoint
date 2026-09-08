@@ -78,18 +78,18 @@ export function StravaPanel({ connection }: Props) {
 
   return (
     <div className="space-y-4">
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
         <div>
           <dt className="text-zinc-500 dark:text-zinc-400">Athlete</dt>
-          <dd className="text-zinc-900 dark:text-zinc-50">{connection.athleteId}</dd>
+          <dd className="text-figures text-zinc-900 dark:text-zinc-50">{connection.athleteId}</dd>
         </div>
         <div>
           <dt className="text-zinc-500 dark:text-zinc-400">Activities listed</dt>
-          <dd className="text-zinc-900 dark:text-zinc-50">{connection.listedCount}</dd>
+          <dd className="text-figures text-zinc-900 dark:text-zinc-50">{connection.listedCount}</dd>
         </div>
         <div>
           <dt className="text-zinc-500 dark:text-zinc-400">Imported</dt>
-          <dd className="text-zinc-900 dark:text-zinc-50">{connection.importedCount}</dd>
+          <dd className="text-figures text-zinc-900 dark:text-zinc-50">{connection.importedCount}</dd>
         </div>
       </dl>
 

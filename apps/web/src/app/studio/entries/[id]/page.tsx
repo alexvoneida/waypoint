@@ -117,7 +117,7 @@ export default async function StudioEntryPage({ params }: { params: Promise<{ id
 
   return (
     <StudioShell current="/studio/entries">
-      <div className="mt-4">
+      <div className="mt-8">
         <Link
           href="/studio/entries"
           className="text-sm text-zinc-500 underline underline-offset-4 dark:text-zinc-400"

@@ -15,20 +15,18 @@ const REPOSITORY_URL = "https://github.com/alexvoneida/waypoint";
 
 export default function HowItWorksPage() {
   return (
-    <article className="mx-auto max-w-2xl px-6 py-16 sm:px-8">
+    <article className="mx-auto max-w-2xl px-6 py-16 sm:px-8 sm:py-20">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          How it works
-        </h1>
-        <p className="mt-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
+        <h1 className="text-page-title text-zinc-900 dark:text-zinc-50">How it works</h1>
+        <p className="mt-5 text-base leading-7 text-zinc-600 dark:text-zinc-400">
           Waypoint is not a photo grid. Every photograph on this site is
           placed on a map, and that placement is computed, not entered by
           hand. This page explains how.
         </p>
       </header>
 
-      <section className="mt-12">
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <section className="mt-14">
+        <h2 className="text-section-heading text-zinc-900 dark:text-zinc-50">
           The problem
         </h2>
         <div className="mt-4 space-y-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
@@ -50,8 +48,8 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section className="mt-12">
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <section className="mt-14">
+        <h2 className="text-section-heading text-zinc-900 dark:text-zinc-50">
           Finding the offset
         </h2>
         <div className="mt-4 space-y-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
@@ -88,8 +86,8 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section className="mt-12">
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <section className="mt-14">
+        <h2 className="text-section-heading text-zinc-900 dark:text-zinc-50">
           Interpolating a position
         </h2>
         <div className="mt-4 space-y-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
@@ -110,8 +108,8 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section className="mt-12">
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <section className="mt-14">
+        <h2 className="text-section-heading text-zinc-900 dark:text-zinc-50">
           A worked example
         </h2>
         <div className="mt-4 space-y-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
@@ -119,7 +117,7 @@ export default function HowItWorksPage() {
             Say a photograph was taken on a Colorado hike, and the camera&apos;s
             clock reads:
           </p>
-          <p className="font-mono tabular-nums text-zinc-800 dark:text-zinc-200">
+          <p className="text-figures font-mono text-zinc-800 dark:text-zinc-200">
             2026-06-14 12:03:19 (no time zone recorded)
           </p>
           <p>
@@ -127,7 +125,7 @@ export default function HowItWorksPage() {
             behind UTC in June. Applying that offset turns the naive reading
             into a real instant:
           </p>
-          <p className="font-mono tabular-nums text-zinc-800 dark:text-zinc-200">
+          <p className="text-figures font-mono text-zinc-800 dark:text-zinc-200">
             12:03:19 + 6:00:00 = 18:03:19 UTC
           </p>
           <p>The track has two points bracketing that instant:</p>
@@ -141,7 +139,7 @@ export default function HowItWorksPage() {
                   <th className="py-2 font-medium">Longitude</th>
                 </tr>
               </thead>
-              <tbody className="font-mono tabular-nums text-zinc-800 dark:text-zinc-200">
+              <tbody className="text-figures font-mono text-zinc-800 dark:text-zinc-200">
                 <tr className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-4">A (before)</td>
                   <td className="py-2 pr-4">18:03:12</td>
@@ -161,14 +159,14 @@ export default function HowItWorksPage() {
             The gap between A and B is 16 seconds. The photograph&apos;s
             instant, 18:03:19, falls 7 seconds into that gap:
           </p>
-          <p className="font-mono tabular-nums text-zinc-800 dark:text-zinc-200">
+          <p className="text-figures font-mono text-zinc-800 dark:text-zinc-200">
             fraction = (18:03:19 − 18:03:12) / 16s = 7 / 16 = 0.4375
           </p>
           <p>
             Applying that fraction to the latitude and longitude between A
             and B places the photograph at:
           </p>
-          <p className="font-mono tabular-nums text-zinc-800 dark:text-zinc-200">
+          <p className="text-figures font-mono text-zinc-800 dark:text-zinc-200">
             39.995175, -105.28265
           </p>
           <p>
@@ -179,8 +177,8 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section className="mt-12">
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <section className="mt-14">
+        <h2 className="text-section-heading text-zinc-900 dark:text-zinc-50">
           Confidence
         </h2>
         <div className="mt-4 space-y-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
@@ -219,8 +217,8 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section className="mt-12">
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <section className="mt-14">
+        <h2 className="text-section-heading text-zinc-900 dark:text-zinc-50">
           What this doesn&apos;t do
         </h2>
         <div className="mt-4 space-y-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">
@@ -243,8 +241,8 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section className="mt-12">
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <section className="mt-14">
+        <h2 className="text-section-heading text-zinc-900 dark:text-zinc-50">
           The code
         </h2>
         <p className="mt-4 text-base leading-7 text-zinc-600 dark:text-zinc-400">

@@ -86,12 +86,12 @@ export default async function ProfilePage({
   if (!profile) notFound();
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-16 sm:px-8">
+    <div className="mx-auto max-w-5xl px-6 py-16 sm:px-8 sm:py-20">
       <header className="max-w-2xl">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <h1 className="text-page-title text-zinc-900 dark:text-zinc-50">
           {profile.header.displayName}
         </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-figures mt-2 text-sm text-zinc-500 dark:text-zinc-400">
           @{profile.header.handle} · joined {formatJoinedOn(profile.header.joinedAt)}
         </p>
       </header>
@@ -99,11 +99,11 @@ export default async function ProfilePage({
       {!profile.outingsVisible ? (
         // Deliberately says nothing about how many entries exist behind
         // this - not "0 public entries", just that the list is closed.
-        <p className="mt-12 text-base text-zinc-500 dark:text-zinc-400">
-          This account is private.
+        <p className="mt-14 max-w-md text-base leading-7 text-zinc-500 dark:text-zinc-400">
+          This account is private. Its owner has chosen not to share their outings publicly.
         </p>
       ) : profile.entries.length > 0 ? (
-        <ul className="mt-12 grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-14 grid grid-cols-1 gap-x-6 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
           {profile.entries.map((entry) => (
             <li key={entry.slug}>
               <EntryCard entry={entry} showAuthor={false} />
@@ -111,8 +111,8 @@ export default async function ProfilePage({
           ))}
         </ul>
       ) : (
-        <p className="mt-12 text-base text-zinc-500 dark:text-zinc-400">
-          No entries have been published yet.
+        <p className="mt-14 max-w-md text-base leading-7 text-zinc-500 dark:text-zinc-400">
+          {profile.header.displayName} hasn&apos;t published any outings yet.
         </p>
       )}
     </div>

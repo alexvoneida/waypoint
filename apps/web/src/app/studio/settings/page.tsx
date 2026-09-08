@@ -53,7 +53,7 @@ export default async function SettingsPage() {
     return (
       <StudioShell current="/studio/settings">
         <p className="mt-8 text-base leading-7 text-zinc-600 dark:text-zinc-400">
-          Your account could not be loaded.
+          Your account could not be loaded. Try reloading the page.
         </p>
       </StudioShell>
     );
@@ -84,19 +84,15 @@ export default async function SettingsPage() {
 
   return (
     <StudioShell current="/studio/settings">
-      <section className="mt-10">
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Account
-        </h2>
+      <section className="mt-8">
+        <h2 className="text-section-heading text-zinc-900 dark:text-zinc-50">Account</h2>
         <div className="mt-4">
           <SettingsForm initial={initial} />
         </div>
       </section>
 
       <section className="mt-12">
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Cameras
-        </h2>
+        <h2 className="text-section-heading text-zinc-900 dark:text-zinc-50">Cameras</h2>
         <div className="mt-4">
           <CameraList cameras={cameras} />
         </div>

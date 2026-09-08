@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getViewerFromCookies } from "@/lib/auth";
 import { loadConnectionSummary } from "@/lib/strava/summary";
+import { StudioShell } from "../shell";
 import { StravaPanel } from "../strava-panel";
 import { ActivitySelector } from "./activity-selector";
 
@@ -39,17 +39,8 @@ export default async function StravaImportPage({
   const callbackError = params.error ? CALLBACK_ERRORS[params.error] : null;
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-16 sm:px-8">
-      <Link
-        href="/studio"
-        className="text-sm text-zinc-500 underline underline-offset-4 dark:text-zinc-400"
-      >
-        Studio
-      </Link>
-      <h1 className="mt-4 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-        Import from Strava
-      </h1>
-      <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600 dark:text-zinc-400">
+    <StudioShell current="/studio/strava">
+      <p className="mt-8 max-w-2xl text-base leading-7 text-zinc-600 dark:text-zinc-400">
         Each activity you choose becomes a draft entry with its track attached and no
         photographs yet. Upload the photographs against the draft, and correlation places
         them on the track.
@@ -59,7 +50,7 @@ export default async function StravaImportPage({
         <p className="mt-6 text-sm text-red-600 dark:text-red-400">{callbackError}</p>
       ) : null}
 
-      <div className="mt-10">
+      <div className="mt-8">
         <StravaPanel connection={connection} />
       </div>
 
@@ -68,6 +59,6 @@ export default async function StravaImportPage({
           <ActivitySelector />
         </div>
       ) : null}
-    </div>
+    </StudioShell>
   );
 }

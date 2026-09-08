@@ -28,9 +28,17 @@ export function PhotoStrip({ photos, activePhotoId, onHoverPhoto, onClickPhoto }
   const [lightboxId, setLightboxId] = useState<string | null>(null);
   const lightboxPhoto = photos.find((photo) => photo.id === lightboxId) ?? null;
 
+  if (photos.length === 0) {
+    return (
+      <p className="text-base leading-7 text-zinc-500 dark:text-zinc-400">
+        Every photograph on this outing is currently hidden from the public page.
+      </p>
+    );
+  }
+
   return (
     <>
-      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      <ul className="grid grid-cols-2 gap-3 gap-y-6 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
         {photos.map((photo) => {
           const width = photo.width ?? FALLBACK_WIDTH;
           const height = photo.height ?? FALLBACK_HEIGHT;
@@ -57,7 +65,9 @@ export function PhotoStrip({ photos, activePhotoId, onHoverPhoto, onClickPhoto }
                 }}
               />
               {caption && (
-                <p className="mt-1.5 text-xs leading-5 text-zinc-500 dark:text-zinc-400">{caption}</p>
+                <p className="text-figures mt-1.5 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  {caption}
+                </p>
               )}
             </li>
           );

@@ -46,12 +46,12 @@ export function EntryCard({
         <div className="aspect-[3/2] rounded-sm bg-zinc-100 dark:bg-zinc-900" />
       )}
 
-      <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="mt-4 text-figures text-sm text-zinc-500 dark:text-zinc-400">
         {formatOccurredOn(entry.occurredOn)}
         {showAuthor && <> · @{entry.handle}</>}
       </p>
 
-      <h2 className="mt-1 text-lg font-medium text-zinc-900 group-hover:text-[var(--accent)] dark:text-zinc-50">
+      <h2 className="text-card-title mt-1 text-zinc-900 group-hover:text-[var(--accent)] dark:text-zinc-50">
         {entry.title}
       </h2>
       {entry.trailName && (
@@ -62,7 +62,7 @@ export function EntryCard({
         <dl className="flex flex-wrap gap-x-4 gap-y-1">
           {stats.map((stat) => (
             <div key={stat.label} className="flex items-baseline gap-1">
-              <dd className="text-sm font-medium tabular-nums text-zinc-700 dark:text-zinc-300">
+              <dd className="text-figures text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 {stat.value}
               </dd>
               <dt className="text-xs text-zinc-400 dark:text-zinc-500">{stat.label}</dt>
@@ -72,7 +72,7 @@ export function EntryCard({
         <RouteThumbnail geojson={entry.trackGeojson} />
       </div>
 
-      <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
+      <p className="text-figures mt-2 text-xs text-zinc-400 dark:text-zinc-500">
         {entry.likeCount} {entry.likeCount === 1 ? "like" : "likes"}
       </p>
     </Link>

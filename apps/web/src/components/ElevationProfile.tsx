@@ -69,14 +69,19 @@ export function ElevationProfile({ points, photos, activePhotoId, onHoverMarker 
       <path d={layout.area} className="fill-zinc-900/[.05] dark:fill-zinc-50/[.06]" />
       <path d={layout.path} className="fill-none stroke-zinc-500 dark:stroke-zinc-400" strokeWidth={1.5} />
 
-      <text x={PADDING.left - 8} y={PADDING.top + 4} textAnchor="end" className="fill-zinc-500 text-[10px] dark:fill-zinc-400">
+      <text
+        x={PADDING.left - 8}
+        y={PADDING.top + 4}
+        textAnchor="end"
+        className="text-figures fill-zinc-500 text-[10px] dark:fill-zinc-400"
+      >
         {formatElevation(layout.maxElevation)}
       </text>
       <text
         x={PADDING.left - 8}
         y={PADDING.top + layout.plotHeight}
         textAnchor="end"
-        className="fill-zinc-500 text-[10px] dark:fill-zinc-400"
+        className="text-figures fill-zinc-500 text-[10px] dark:fill-zinc-400"
       >
         {formatElevation(layout.minElevation)}
       </text>
@@ -84,7 +89,7 @@ export function ElevationProfile({ points, photos, activePhotoId, onHoverMarker 
         x={VIEW_WIDTH - PADDING.right}
         y={VIEW_HEIGHT - 8}
         textAnchor="end"
-        className="fill-zinc-500 text-[10px] dark:fill-zinc-400"
+        className="text-figures fill-zinc-500 text-[10px] dark:fill-zinc-400"
       >
         {formatDistance(layout.maxDistance)}
       </text>

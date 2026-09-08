@@ -84,10 +84,10 @@ function CameraRow({ camera }: { camera: CameraProfile }) {
 
   return (
     <div>
-      <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
+      <h3 className="text-subsection-heading text-zinc-900 dark:text-zinc-50">
         {camera.make.toUpperCase()} {camera.model.toUpperCase()}
       </h3>
-      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="text-figures mt-1 text-sm text-zinc-500 dark:text-zinc-400">
         {Number(camera.photo_count)} photograph{Number(camera.photo_count) === 1 ? "" : "s"}
       </p>
 
@@ -122,7 +122,7 @@ function CameraRow({ camera }: { camera: CameraProfile }) {
         </button>
       </div>
 
-      <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="text-figures mt-2 text-sm text-zinc-500 dark:text-zinc-400">
         Source: {sourceLabel(source)}
         {calibratedAt ? ` · calibrated ${new Date(calibratedAt).toLocaleDateString()}` : ""}
       </p>

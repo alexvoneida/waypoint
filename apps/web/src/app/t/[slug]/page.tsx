@@ -62,20 +62,18 @@ export default async function TrailPage({
   const allTracks = trail.groups.flatMap((group) => group.visits.map((visit) => visit.trackGeojson));
 
   return (
-    <article className="mx-auto max-w-5xl px-6 py-12 sm:px-8">
-      <header className="mb-10">
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl dark:text-zinc-50">
-          {trail.name}
-        </h1>
+    <article className="mx-auto max-w-5xl px-6 py-12 sm:px-8 sm:py-16">
+      <header className="mb-12 sm:mb-16">
+        <h1 className="text-entry-title text-zinc-900 dark:text-zinc-50">{trail.name}</h1>
         {trail.nameSource === "osm" && (
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
             Name via OpenStreetMap contributors, ODbL-licensed.
           </p>
         )}
-        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-figures mt-4 text-sm text-zinc-500 dark:text-zinc-400">
           {hasVisits
             ? `${trail.visitCount} ${trail.visitCount === 1 ? "visit" : "visits"} recorded here`
-            : "No public visits yet."}
+            : "No one has published a visit to this trail yet."}
         </p>
 
         {hasVisits && (
@@ -87,17 +85,17 @@ export default async function TrailPage({
 
       {hasVisits && (
         <>
-          <div className="mb-12">
+          <div className="mb-14">
             <TrailMapClient tracks={allTracks} />
           </div>
 
-          <div className="flex flex-col gap-12">
+          <div className="flex flex-col gap-14">
             {trail.groups.map((group, groupIndex) => (
               <section key={group.occurredOn}>
-                <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                <h2 className="text-figures text-sm font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                   {formatOccurredOn(group.occurredOn)}
                 </h2>
-                <ul className="mt-4 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+                <ul className="mt-5 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
                   {group.visits.map((visit, visitIndex) => (
                     <TrailVisitCard
                       key={`${visit.authorHandle}/${visit.entrySlug}`}
