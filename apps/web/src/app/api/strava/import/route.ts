@@ -53,12 +53,22 @@ export async function POST(request: NextRequest) {
   // selection. Enqueued before the response so the caller learns immediately
   // if the queue is unreachable -- unlike the fire-and-forget sends elsewhere,
   // nothing is persisted here that failing loudly would orphan.
-  await inngest.send(
-    toImport.map((stravaId) => ({
-      name: "strava/import.activity",
-      data: { userId, stravaId },
-    })),
-  );
+  //
+  // Caught rather than thrown: an unreachable queue is a stated, retriable
+  // condition, and the selector can say so. Letting it escape produces a bare
+  // 500 with an empty body, which is the same outcome dressed as a crash.
+  try {
+    await inngest.send(
+      toImport.map((stravaId) => ({
+        name: "strava/import.activity",
+        data: { userId, stravaId },
+      })),
+    );
+  } catch (error) {
+    console.error(`failed to enqueue strava/import.activity for ${userId}:`, error);
+    await withUser(userId, (client) => setBackfillStatus(client, userId, "ready"));
+    return jsonError(503, "The import queue is unavailable. Nothing was imported; try again.");
+  }
 
   return jsonOk({ queued: toImport.length, alreadyImported, unknown }, { status: 202 });
 }

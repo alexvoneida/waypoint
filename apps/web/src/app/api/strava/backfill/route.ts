@@ -52,6 +52,21 @@ export async function POST(request: NextRequest) {
     ),
   );
 
-  await inngest.send({ name: "strava/backfill.requested", data: { userId } });
+  // As in POST /api/strava/import: an unreachable queue is reported as such
+  // rather than escaping as a bare 500. The status is put back so the studio
+  // does not sit on "listing" for a scan that was never queued.
+  try {
+    await inngest.send({ name: "strava/backfill.requested", data: { userId } });
+  } catch (error) {
+    console.error(`failed to enqueue strava/backfill.requested for ${userId}:`, error);
+    await withUser(userId, (client) =>
+      client.query(
+        `update strava_connections set backfill_status = $2 where user_id = $1`,
+        [userId, connection.backfillStatus],
+      ),
+    );
+    return jsonError(503, "The listing queue is unavailable. Try again in a moment.");
+  }
+
   return jsonOk({ status: "listing" });
 }
