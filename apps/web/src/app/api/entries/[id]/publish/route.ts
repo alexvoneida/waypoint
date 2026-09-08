@@ -4,12 +4,14 @@ import type { PoolClient } from "pg";
 import { getViewer } from "@/lib/auth";
 import { withUser } from "@/lib/db";
 import { jsonError, jsonOk } from "@/lib/http";
+import { recountTrailEntries } from "@/lib/trail-match";
 
 interface EntryRow {
   id: string;
   title: string;
   slug: string | null;
   status: string;
+  trail_id: string | null;
 }
 
 // Lowercase, hyphenated, ASCII-folded: NFKD decomposition splits an accented
@@ -89,7 +91,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // missing row means "not yours" and "doesn't exist" both, exactly as in
     // POST /api/entries.
     const { rows } = await client.query<EntryRow>(
-      "select id, title, slug, status from entries where id = $1",
+      "select id, title, slug, status, trail_id from entries where id = $1",
       [entryId],
     );
     const entry = rows[0];
@@ -106,6 +108,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const slug = entry.status === "published" && entry.slug
       ? entry.slug
       : await publishWithUniqueSlug(client, entry.id, slugify(entry.title));
+
+    // public_entry_count only ever reflects entries visible_entries can see,
+    // so publishing (the only thing that can add this entry to that view) is
+    // exactly when the trail's count can change. An entry with no trail yet
+    // -- trail.match has not run, or has not been triggered -- has nothing to
+    // recount.
+    if (entry.trail_id) {
+      await recountTrailEntries(client, entry.trail_id);
+    }
 
     const url = await publicUrlFor(client, userId, slug);
     return { notFound: false as const, id: entry.id, slug, url };

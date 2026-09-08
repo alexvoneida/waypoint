@@ -3,6 +3,7 @@ import { GpxParseError, parseGpx, type Track } from "@waypoint/correlation";
 import { getViewer } from "@/lib/auth";
 import { withUser } from "@/lib/db";
 import { jsonError, jsonOk } from "@/lib/http";
+import { inngest } from "@/lib/jobs/client";
 import { insertActivity } from "@/lib/track";
 
 // Above this, a GPX upload is rejected outright rather than accepted. §7
@@ -112,6 +113,17 @@ export async function POST(request: NextRequest) {
     );
     return { activityId: id, distanceM: rows[0]?.distance_m ?? 0 };
   });
+
+  // Sent after the transaction above has committed, following the same
+  // best-effort pattern POST /api/entries uses for photo/uploaded: the
+  // activity is already persisted by this point, so a failed enqueue must
+  // not fail a request that otherwise fully succeeded. trail.match can
+  // always be re-triggered later; there is nothing here for it to race.
+  await inngest
+    .send({ name: "activity/created", data: { activityId, userId } })
+    .catch((error: unknown) => {
+      console.error(`failed to enqueue activity/created for ${activityId}:`, error);
+    });
 
   return jsonOk(
     {
