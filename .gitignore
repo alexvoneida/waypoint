@@ -1,5 +1,6 @@
 # Product requirements and working notes — deliberately untracked
 docs/
+PHASE-*.md
 
 # Dependencies
 node_modules/
