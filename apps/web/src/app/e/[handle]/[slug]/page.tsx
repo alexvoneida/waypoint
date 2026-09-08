@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { loadEntryPage } from "@/lib/entries";
 import { EntryExperience } from "@/components/EntryExperience";
+import { EntrySocial } from "@/components/EntrySocial";
 import { StatisticsBar } from "@/components/StatisticsBar";
 
 // No paths built at `next build` time (the database is not assumed reachable
@@ -89,6 +90,10 @@ export default async function EntryPage({
         elevation={entry.elevation}
         photos={entry.photos}
       />
+
+      <section className="mt-16">
+        <EntrySocial entryId={entry.id} />
+      </section>
     </article>
   );
 }
