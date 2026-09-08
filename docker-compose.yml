@@ -21,5 +21,27 @@ services:
       timeout: 5s
       retries: 10
 
+  # S3-compatible object store for development. R2 speaks the same API, so
+  # the only difference in production is the endpoint and credentials.
+  objects:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: waypoint-objects
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${R2_ACCESS_KEY_ID:-waypoint}
+      MINIO_ROOT_PASSWORD: ${R2_SECRET_ACCESS_KEY:-waypoint-dev-secret}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - objectdata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   pgdata:
+  objectdata:
