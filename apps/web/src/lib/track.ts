@@ -21,6 +21,27 @@ export interface InsertActivityInput {
   name: string;
   source: "gpx" | "fit" | "strava";
   track: Track;
+  /**
+   * The id this activity carries at its source, for the `unique (user_id,
+   * source, external_id)` constraint that makes N-3's dedupe a property of
+   * the schema rather than of a check the importer remembers to run.
+   */
+  externalId?: string;
+  /** IANA zone name, for display. Never used for arithmetic. */
+  localZone?: string;
+  /**
+   * Defaults to 'hike', matching the column default: the product is hiking
+   * only, and an upload is one until something says otherwise. Import sets
+   * it from what the source called the activity.
+   */
+  sport?: "hike" | "other";
+  /**
+   * Elevation gain and moving time as *reported by the source*. Only a
+   * source that measures them may supply these -- in practice Strava. See
+   * the note below on why a computed fallback must never appear here.
+   */
+  reportedAscentM?: number | null;
+  reportedMovingS?: number | null;
 }
 
 /**
@@ -30,13 +51,14 @@ export interface InsertActivityInput {
  * chance of the simplified line or the distance drifting from the stored
  * track.
  *
- * `ascent_m` and `moving_s` are inserted as NULL, always, for GPX. This is
- * load-bearing (see 0002_schema.sql's comment on `activities.ascent_m`): these
- * columns hold Strava's own reported figures or nothing. A GPX track has
- * enough samples to make a naive positive-elevation-delta sum tempting, but
- * that sum overstates real gain badly on noisy consumer GPS traces, and a
- * silently-wrong number is worse than an honest blank. Do not compute a
- * fallback here.
+ * `ascent_m` and `moving_s` are inserted as NULL unless the caller passes
+ * figures the *source* reported. This is load-bearing (see 0002_schema.sql's
+ * comment on `activities.ascent_m`): these columns hold Strava's own numbers
+ * or nothing. A GPX track has enough samples to make a naive
+ * positive-elevation-delta sum tempting, but that sum overstates real gain
+ * badly on noisy consumer GPS traces, and a silently-wrong number is worse
+ * than an honest blank. Do not compute a fallback here — the only legitimate
+ * value is one a device or service measured and handed over.
  */
 export async function insertActivity(
   client: PoolClient,
@@ -49,16 +71,29 @@ export async function insertActivity(
 
   const { rows } = await client.query<{ id: string }>(
     `insert into activities
-       (user_id, source, name, started_at, ended_at, track, track_simplified,
-        distance_m, ascent_m, moving_s, elapsed_s)
+       (user_id, source, external_id, name, local_zone, sport, started_at, ended_at,
+        track, track_simplified, distance_m, ascent_m, moving_s, elapsed_s)
      values
-       ($1, $2, $3, to_timestamp($4), to_timestamp($5),
+       ($1, $2, $8, $3, $9, $12, to_timestamp($4), to_timestamp($5),
         ST_GeomFromText($6, 4326),
         ST_SimplifyPreserveTopology(ST_Force2D(ST_GeomFromText($6, 4326)), 0.0001),
         ST_Length(ST_GeomFromText($6, 4326)::geography),
-        null, null, $7)
+        $10, $11, $7)
      returning id`,
-    [userId, source, name, track.startedAt, track.endedAt, wkt, elapsedSeconds],
+    [
+      userId,
+      source,
+      name,
+      track.startedAt,
+      track.endedAt,
+      wkt,
+      elapsedSeconds,
+      input.externalId ?? null,
+      input.localZone ?? null,
+      input.reportedAscentM ?? null,
+      input.reportedMovingS ?? null,
+      input.sport ?? "hike",
+    ],
   );
 
   const id = rows[0]?.id;
