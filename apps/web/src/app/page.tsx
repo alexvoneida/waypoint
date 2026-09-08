@@ -1,16 +1,15 @@
-import Link from "next/link";
-import { loadRecentEntries } from "@/lib/entries";
-import { BlurredImage } from "@/components/BlurredImage";
-import { formatDistance } from "@/components/format";
+import { loadDiscoveryEntries } from "@/lib/entries";
+import { EntryCard } from "@/components/EntryCard";
 
-const RECENT_ENTRY_LIMIT = 12;
-const FALLBACK_WIDTH = 640;
-const FALLBACK_HEIGHT = 427;
+const DISCOVERY_ENTRY_LIMIT = 24;
 
+// Purely reverse-chronological - no ranking, no algorithm. That is a stated
+// product decision, not a placeholder for one: every visitor sees the same
+// feed, in the order things were published.
 export const revalidate = 300;
 
 export default async function Home() {
-  const entries = await loadRecentEntries(RECENT_ENTRY_LIMIT);
+  const entries = await loadDiscoveryEntries(DISCOVERY_ENTRY_LIMIT);
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-16 sm:px-8">
@@ -27,29 +26,10 @@ export default async function Home() {
       </header>
 
       {entries.length > 0 ? (
-        <ul className="mt-12 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-12 grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
           {entries.map((entry) => (
             <li key={`${entry.handle}/${entry.slug}`}>
-              <Link href={`/e/${entry.handle}/${entry.slug}`} className="group block">
-                {entry.leadPhoto ? (
-                  <BlurredImage
-                    src={`/i/${entry.leadPhoto.id}/web`}
-                    blurHash={entry.leadPhoto.blurHash}
-                    width={entry.leadPhoto.width ?? FALLBACK_WIDTH}
-                    height={entry.leadPhoto.height ?? FALLBACK_HEIGHT}
-                    alt=""
-                    className="rounded-sm"
-                  />
-                ) : (
-                  <div className="aspect-[3/2] rounded-sm bg-zinc-100 dark:bg-zinc-900" />
-                )}
-                <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-                  {entry.authorDisplayName} · {formatDistance(entry.distanceM)}
-                </p>
-                <h2 className="mt-1 text-lg font-medium text-zinc-900 group-hover:text-[var(--accent)] dark:text-zinc-50">
-                  {entry.title}
-                </h2>
-              </Link>
+              <EntryCard entry={entry} showAuthor />
             </li>
           ))}
         </ul>

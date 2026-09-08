@@ -1,7 +1,6 @@
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getViewerFromCookies } from "@/lib/auth";
 import { loadEntryPage } from "@/lib/entries";
 import { EntryExperience } from "@/components/EntryExperience";
 import { StatisticsBar } from "@/components/StatisticsBar";
@@ -20,8 +19,15 @@ export async function generateStaticParams() {
 // scopes the memoization to one request so the second call is free instead of
 // a second round trip to Postgres.
 const getEntry = cache(async (handle: string, slug: string) => {
-  const viewerId = await getViewerFromCookies();
-  return loadEntryPage(handle, slug, viewerId);
+  // Deliberately viewer-independent. This page is statically generated and
+  // revalidated on publish, and a page that reads the request's cookies cannot
+  // be: Next refuses to prerender it, which is the right refusal - a cached
+  // personalised render is one viewer's page served to the next visitor.
+  //
+  // The cost is that the owner of a private account gets a 404 at their own
+  // public URL rather than a preview; that belongs in the studio, which is
+  // where an unpublished or hidden outing is managed from.
+  return loadEntryPage(handle, slug, null);
 });
 
 export async function generateMetadata({

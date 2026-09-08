@@ -14,7 +14,10 @@ interface Stat {
 // elapsed_s is never null, and unlike ascent it is not a computed estimate -
 // it is a second real measurement of the same hike, just the wall-clock one
 // instead of Strava's moving-time one.
-function buildStats(stats: EntryStats): Stat[] {
+// Exported so other views (the discovery card grid, a profile's outings
+// list) build the same set of visible stats instead of re-deriving the
+// ascent/moving-time fallback logic themselves.
+export function buildStats(stats: EntryStats): Stat[] {
   const entries: Stat[] = [{ label: "Distance", value: formatDistance(stats.distanceM) }];
   if (stats.ascentM != null) {
     entries.push({ label: "Elevation gain", value: formatElevation(stats.ascentM) });
