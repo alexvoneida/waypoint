@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const SECTIONS = [
   { href: "/studio", label: "Overview" },
+  { href: "/studio/entries", label: "Outings" },
   { href: "/studio/strava", label: "Strava" },
   { href: "/studio/settings", label: "Settings" },
 ] as const;
