@@ -163,12 +163,23 @@ export const exifExtract = inngest.createFunction(
   async ({ event, step }) => {
     const { photoId, userId } = event.data as PhotoEventData;
     const outcome = await step.run("extract-exif", () => extractExifForPhoto(photoId, userId));
+
+    // Sent whether the photo succeeded or failed. The correlation fan-in waits
+    // for every photo in the batch to leave 'uploaded', and a failure is one of
+    // the ways that happens - firing only on success means a batch whose last
+    // photo fails never reaches the barrier and silently never correlates.
+    await step.sendEvent("photo-settled", {
+      name: "photo/exif.settled",
+      data: { photoId, userId },
+    });
+
     if (outcome.status === "failed") {
       return outcome;
     }
-    // The chain to derive is an event, not a direct call, so a re-delivered
-    // exif.extract run and a re-delivered derive run are independently
-    // retryable by Inngest rather than coupled into one longer step.
+
+    // Derive is chained by event rather than by a direct call so that a
+    // re-delivered exif.extract and a re-delivered derive stay independently
+    // retryable instead of being coupled into one longer step.
     await step.sendEvent("queue-derive", {
       name: "photo/exif.extracted",
       data: { photoId, userId },

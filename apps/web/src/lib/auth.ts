@@ -1,4 +1,5 @@
 import { randomBytes, createHash } from "node:crypto";
+import { cookies } from "next/headers";
 import { hash as argon2Hash, verify as argon2Verify } from "@node-rs/argon2";
 import type { NextRequest } from "next/server";
 import { readPublic, withUser } from "./db";
@@ -100,6 +101,16 @@ export const SESSION_LIFETIME_SECONDS = SESSION_LIFETIME_MS / 1000;
 export async function getViewer(request: NextRequest): Promise<string | null> {
   const cookieToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const token = cookieToken ?? bearerToken(request);
+  if (!token) return null;
+  return resolveSession(token);
+}
+
+// For Server Components, which receive no NextRequest to hand getViewer.
+// Cookie-only (no Authorization header): a native client authenticating a
+// page render isn't a scenario Server Components serve, only browsers with
+// the httpOnly cookie are.
+export async function getViewerFromCookies(): Promise<string | null> {
+  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
   return resolveSession(token);
 }

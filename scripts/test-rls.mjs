@@ -57,6 +57,8 @@ const alice = { id: null };
 const bob = { id: null };
 let aliceDraftId = null;
 let alicePublishedId = null;
+let aliceDraft = null;
+let alicePublished = null;
 
 // The id is generated here rather than by the database, because account
 // creation has no acting user and `insert ... returning id` needs a SELECT
@@ -98,15 +100,30 @@ async function createEntry(userId, { published }) {
         published ? new Date() : null,
       ],
     );
-    return entry.rows[0].id;
+    const entryId = entry.rows[0].id;
+    const photo = await client.query(
+      `insert into photos (entry_id, checksum, key_original, key_thumb, status)
+       values ($1, $2, 'originals/test.jpg', 'derived/test-thumb.webp', 'ready')
+       returning id`,
+      [entryId, Buffer.from(randomUUID())],
+    );
+    await client.query(
+      `insert into photo_locations
+         (photo_id, geom, method, confidence, applied_offset_s)
+       values ($1, ST_GeogFromText('POINT(-107.8 38)'), 'interpolated', 'high', -21600)`,
+      [photo.rows[0].id],
+    );
+    return { entryId, activityId: activity.rows[0].id, photoId: photo.rows[0].id };
   });
 }
 
 before(async () => {
   alice.id = await createUser(`alice${Date.now()}`);
   bob.id = await createUser(`bob${Date.now()}`);
-  aliceDraftId = await createEntry(alice.id, { published: false });
-  alicePublishedId = await createEntry(alice.id, { published: true });
+  aliceDraft = await createEntry(alice.id, { published: false });
+  alicePublished = await createEntry(alice.id, { published: true });
+  aliceDraftId = aliceDraft.entryId;
+  alicePublishedId = alicePublished.entryId;
 });
 
 after(async () => {
@@ -249,4 +266,82 @@ test('app.user_id does not leak to the next user of a pooled connection', async 
   await asUser(alice.id, (client) => client.query('select 1'));
   const { rows } = await pool.query(`select current_app_user() is null as unset`);
   assert.equal(rows[0].unset, true);
+});
+
+
+// 0008 added permissive read policies for the rows a public entry page needs.
+// They are resolved through visible_entries, so the question these tests answer
+// is whether that resolution actually holds for a draft and for a private
+// account, rather than only for the happy path the page exercises.
+
+test('a visitor can read the photos and activity of a published public entry', async () => {
+  const photos = await asUser(null, (client) =>
+    client.query('select id from photos where entry_id = $1', [alicePublishedId]),
+  );
+  assert.equal(photos.rows.length, 1);
+
+  const activity = await asUser(null, (client) =>
+    client.query('select id from activities where id = $1', [alicePublished.activityId]),
+  );
+  assert.equal(activity.rows.length, 1);
+
+  const locations = await asUser(null, (client) =>
+    client.query('select photo_id from photo_locations where photo_id = $1', [
+      alicePublished.photoId,
+    ]),
+  );
+  assert.equal(locations.rows.length, 1);
+});
+
+test('a visitor cannot read the photos, activity or locations of a draft', async () => {
+  const photos = await asUser(null, (client) =>
+    client.query('select id from photos where entry_id = $1', [aliceDraftId]),
+  );
+  assert.equal(photos.rows.length, 0, 'a draft photo must not be readable');
+
+  const activity = await asUser(null, (client) =>
+    client.query('select id from activities where id = $1', [aliceDraft.activityId]),
+  );
+  assert.equal(activity.rows.length, 0, 'a draft activity must not be readable');
+
+  const locations = await asUser(null, (client) =>
+    client.query('select photo_id from photo_locations where photo_id = $1', [aliceDraft.photoId]),
+  );
+  assert.equal(locations.rows.length, 0, 'a draft photo location must not be readable');
+});
+
+test('a second account cannot read another account\'s draft photos', async () => {
+  const { rows } = await asUser(bob.id, (client) =>
+    client.query('select id from photos where entry_id = $1', [aliceDraftId]),
+  );
+  assert.equal(rows.length, 0);
+});
+
+test('making the account private hides its photos, not only its entry row', async () => {
+  await asUser(alice.id, (client) =>
+    client.query(`update users set profile_visibility = 'private' where id = $1`, [alice.id]),
+  );
+
+  const photos = await asUser(null, (client) =>
+    client.query('select id from photos where entry_id = $1', [alicePublishedId]),
+  );
+  const locations = await asUser(null, (client) =>
+    client.query('select photo_id from photo_locations where photo_id = $1', [
+      alicePublished.photoId,
+    ]),
+  );
+
+  await asUser(alice.id, (client) =>
+    client.query(`update users set profile_visibility = 'public' where id = $1`, [alice.id]),
+  );
+
+  assert.equal(photos.rows.length, 0, 'the photographs must follow the account switch');
+  assert.equal(locations.rows.length, 0, 'the coordinates must follow it too');
+});
+
+test('the owner still reads their own draft photos', async () => {
+  const { rows } = await asUser(alice.id, (client) =>
+    client.query('select id from photos where entry_id = $1', [aliceDraftId]),
+  );
+  assert.equal(rows.length, 1);
 });

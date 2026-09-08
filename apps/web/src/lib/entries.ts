@@ -1,0 +1,312 @@
+import type { PoolClient } from "pg";
+import { readPublic, withUser } from "./db";
+
+export type Confidence = "high" | "medium" | "low";
+
+export interface EntryPhoto {
+  id: string;
+  capturedAt: string | null;
+  width: number | null;
+  height: number | null;
+  blurHash: string | null;
+  lens: string | null;
+  focalLength: number | null;
+  aperture: number | null;
+  iso: number | null;
+  hasWeb: boolean;
+  hasThumb: boolean;
+  hasFull: boolean;
+  location: {
+    lon: number;
+    lat: number;
+    elevationM: number | null;
+    distanceAlongM: number | null;
+    confidence: Confidence;
+  } | null;
+}
+
+export interface ElevationPoint {
+  distanceM: number;
+  elevationM: number;
+}
+
+export interface EntryStats {
+  distanceM: number;
+  ascentM: number | null;
+  movingS: number | null;
+  elapsedS: number;
+}
+
+export interface EntryPageData {
+  id: string;
+  slug: string;
+  title: string;
+  notes: string | null;
+  occurredOn: string;
+  authorHandle: string;
+  authorDisplayName: string;
+  stats: EntryStats;
+  trackGeojson: GeoJSON.LineString;
+  elevation: ElevationPoint[];
+  photos: EntryPhoto[];
+}
+
+// The elevation profile is drawn against an 800px-wide SVG; a few hundred
+// points is already more resolution than that can show, and the source track
+// on one seeded activity has 15,047. Downsampling here (rather than in the
+// component) keeps the payload the page ships small regardless of how dense
+// the source track is.
+const ELEVATION_TARGET_POINTS = 300;
+
+interface EntryRow {
+  id: string;
+  slug: string;
+  title: string;
+  notes: string | null;
+  occurred_on: string;
+  handle: string;
+  display_name: string;
+  activity_id: string;
+  distance_m: number;
+  ascent_m: number | null;
+  moving_s: number | null;
+  elapsed_s: number;
+  track_geojson: string;
+}
+
+// occurred_on::text: node-postgres parses a bare \`date\` column into a JS
+// Date object (midnight UTC), not the "YYYY-MM-DD" string the EntryRow type
+// says it is - formatOccurredOn's template-literal date parsing produced
+// "Invalid Date" against that Date's default toString(). Casting in SQL
+// keeps the value a plain string all the way to the page.
+const ENTRY_COLUMNS = `
+  e.id, e.slug, e.title, e.notes, e.occurred_on::text as occurred_on,
+  p.handle, p.display_name,
+  a.id as activity_id, a.distance_m, a.ascent_m, a.moving_s, a.elapsed_s,
+  st_asgeojson(a.track_simplified) as track_geojson
+`;
+
+async function selectPublicEntry(
+  client: PoolClient,
+  handle: string,
+  slug: string,
+): Promise<EntryRow | null> {
+  const { rows } = await client.query<EntryRow>(
+    `select ${ENTRY_COLUMNS}
+     from visible_entries e
+     join public_profiles p on p.id = e.user_id
+     join activities a on a.id = e.activity_id
+     where p.handle = $1 and e.slug = $2`,
+    [handle, slug],
+  );
+  return rows[0] ?? null;
+}
+
+// Reached only when the public lookup above misses. A private or unpublished
+// entry still has a slug once it has ever been published (the
+// published_entries_have_a_slug constraint), so an owner can still be looking
+// at their own unlisted work here - everyone else genuinely gets nothing back,
+// which is what turns into the 404 the page renders for a miss.
+async function selectOwnEntry(
+  client: PoolClient,
+  handle: string,
+  slug: string,
+  viewerId: string,
+): Promise<EntryRow | null> {
+  const { rows } = await client.query<EntryRow>(
+    `select ${ENTRY_COLUMNS}
+     from entries e
+     join public_profiles p on p.id = e.user_id
+     join activities a on a.id = e.activity_id
+     where p.handle = $1 and e.slug = $2 and e.user_id = $3`,
+    [handle, slug, viewerId],
+  );
+  return rows[0] ?? null;
+}
+
+interface ElevationDumpRow {
+  ele: number | null;
+  dist_m: number;
+}
+
+async function loadElevationSeries(client: PoolClient, activityId: string): Promise<ElevationPoint[]> {
+  const { rows } = await client.query<ElevationDumpRow>(
+    `select
+       st_z(pt.geom) as ele,
+       st_linelocatepoint(st_force2d(a.track), pt.geom) * a.distance_m as dist_m
+     from activities a,
+          lateral st_dumppoints(a.track) as pt(path, geom)
+     where a.id = $1
+     order by (pt.path)[1]`,
+    [activityId],
+  );
+
+  const withElevation = rows.filter((row): row is { ele: number; dist_m: number } => row.ele != null);
+  return downsample(withElevation, ELEVATION_TARGET_POINTS).map((row) => ({
+    distanceM: row.dist_m,
+    elevationM: row.ele,
+  }));
+}
+
+function downsample<T>(points: T[], target: number): T[] {
+  if (points.length <= target) return points;
+  const stride = points.length / target;
+  const sampled: T[] = [];
+  for (let i = 0; i < target; i += 1) {
+    sampled.push(points[Math.floor(i * stride)]!);
+  }
+  const last = points[points.length - 1]!;
+  if (sampled[sampled.length - 1] !== last) sampled.push(last);
+  return sampled;
+}
+
+interface PhotoRow {
+  id: string;
+  captured_at: string | null;
+  width: number | null;
+  height: number | null;
+  blur_hash: string | null;
+  exif: { lens?: string; focalLength?: number; aperture?: number; iso?: number } | null;
+  key_web: string | null;
+  key_thumb: string | null;
+  key_full: string | null;
+  confidence: Confidence | null;
+  elevation_m: number | null;
+  distance_along_m: number | null;
+  lon: number | null;
+  lat: number | null;
+}
+
+async function loadPhotos(client: PoolClient, entryId: string): Promise<EntryPhoto[]> {
+  const { rows } = await client.query<PhotoRow>(
+    `select
+       ph.id, ph.captured_at, ph.width, ph.height, ph.blur_hash, ph.exif,
+       ph.key_web, ph.key_thumb, ph.key_full,
+       pl.confidence, pl.elevation_m, pl.distance_along_m,
+       st_x(pl.geom::geometry) as lon, st_y(pl.geom::geometry) as lat
+     from photos ph
+     left join photo_locations pl on pl.photo_id = ph.id
+     where ph.entry_id = $1 and ph.status = 'ready' and ph.hidden = false
+     order by ph.captured_at asc nulls last, ph.sort_order asc nulls last, ph.created_at asc`,
+    [entryId],
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    capturedAt: row.captured_at,
+    width: row.width,
+    height: row.height,
+    blurHash: row.blur_hash,
+    lens: row.exif?.lens ?? null,
+    focalLength: row.exif?.focalLength ?? null,
+    aperture: row.exif?.aperture ?? null,
+    iso: row.exif?.iso ?? null,
+    hasWeb: row.key_web != null,
+    hasThumb: row.key_thumb != null,
+    hasFull: row.key_full != null,
+    location:
+      row.lon != null && row.lat != null && row.confidence != null
+        ? {
+            lon: row.lon,
+            lat: row.lat,
+            elevationM: row.elevation_m,
+            distanceAlongM: row.distance_along_m,
+            confidence: row.confidence,
+          }
+        : null,
+  }));
+}
+
+export async function loadEntryPage(
+  handle: string,
+  slug: string,
+  viewerId: string | null,
+): Promise<EntryPageData | null> {
+  return withUser(viewerId, async (client) => {
+    const row =
+      (await selectPublicEntry(client, handle, slug)) ??
+      (viewerId ? await selectOwnEntry(client, handle, slug, viewerId) : null);
+    if (!row) return null;
+
+    const [elevation, photos] = await Promise.all([
+      loadElevationSeries(client, row.activity_id),
+      loadPhotos(client, row.id),
+    ]);
+
+    return {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      notes: row.notes,
+      occurredOn: row.occurred_on,
+      authorHandle: row.handle,
+      authorDisplayName: row.display_name,
+      stats: {
+        distanceM: row.distance_m,
+        ascentM: row.ascent_m,
+        movingS: row.moving_s,
+        elapsedS: row.elapsed_s,
+      },
+      trackGeojson: JSON.parse(row.track_geojson) as GeoJSON.LineString,
+      elevation,
+      photos,
+    };
+  });
+}
+
+export interface RecentEntry {
+  handle: string;
+  slug: string;
+  title: string;
+  occurredOn: string;
+  authorDisplayName: string;
+  distanceM: number;
+  leadPhoto: { id: string; blurHash: string | null; width: number | null; height: number | null } | null;
+}
+
+interface RecentEntryRow {
+  handle: string;
+  slug: string;
+  title: string;
+  occurred_on: string;
+  display_name: string;
+  distance_m: number;
+  lead_photo_id: string | null;
+  lead_blur_hash: string | null;
+  lead_width: number | null;
+  lead_height: number | null;
+}
+
+export async function loadRecentEntries(limit: number): Promise<RecentEntry[]> {
+  return readPublic(async (client) => {
+    const { rows } = await client.query<RecentEntryRow>(
+      `select
+         p.handle, e.slug, e.title, e.occurred_on::text as occurred_on, p.display_name, a.distance_m,
+         e.lead_photo_id, lp.blur_hash as lead_blur_hash, lp.width as lead_width, lp.height as lead_height
+       from visible_entries e
+       join public_profiles p on p.id = e.user_id
+       join activities a on a.id = e.activity_id
+       left join photos lp on lp.id = e.lead_photo_id and lp.status = 'ready'
+       order by e.published_at desc
+       limit $1`,
+      [limit],
+    );
+
+    return rows.map((row) => ({
+      handle: row.handle,
+      slug: row.slug,
+      title: row.title,
+      occurredOn: row.occurred_on,
+      authorDisplayName: row.display_name,
+      distanceM: row.distance_m,
+      leadPhoto: row.lead_photo_id
+        ? {
+            id: row.lead_photo_id,
+            blurHash: row.lead_blur_hash,
+            width: row.lead_width,
+            height: row.lead_height,
+          }
+        : null,
+    }));
+  });
+}
