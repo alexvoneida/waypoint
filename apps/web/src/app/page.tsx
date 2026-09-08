@@ -27,9 +27,9 @@ export default async function Home() {
 
       {entries.length > 0 ? (
         <ul className="mt-12 grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-          {entries.map((entry) => (
+          {entries.map((entry, index) => (
             <li key={`${entry.handle}/${entry.slug}`}>
-              <EntryCard entry={entry} showAuthor />
+              <EntryCard entry={entry} showAuthor priority={index === 0} />
             </li>
           ))}
         </ul>

@@ -73,6 +73,8 @@ export function PhotoStrip({ photos, activePhotoId, onHoverPhoto, onClickPhoto }
           <img
             src={`/i/${lightboxPhoto.id}/full`}
             alt={exifLine(lightboxPhoto) ?? ""}
+            width={lightboxPhoto.width ?? FALLBACK_WIDTH}
+            height={lightboxPhoto.height ?? FALLBACK_HEIGHT}
             className="max-h-full max-w-full object-contain"
           />
         </div>

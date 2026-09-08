@@ -18,7 +18,16 @@ function formatOccurredOn(isoDate: string): string {
 
 // The one card used by both the discovery grid and a profile's outings
 // list, so the two surfaces never drift out of sync on what a "hike" shows.
-export function EntryCard({ entry, showAuthor }: { entry: DiscoveryEntry; showAuthor: boolean }) {
+export function EntryCard({
+  entry,
+  showAuthor,
+  priority = false,
+}: {
+  entry: DiscoveryEntry;
+  showAuthor: boolean;
+  // The first card above the fold on a grid is that page's LCP candidate.
+  priority?: boolean;
+}) {
   const stats = buildStats(entry.stats);
 
   return (
@@ -31,6 +40,7 @@ export function EntryCard({ entry, showAuthor }: { entry: DiscoveryEntry; showAu
           height={entry.leadPhoto.height ?? FALLBACK_HEIGHT}
           alt=""
           className="rounded-sm"
+          priority={priority}
         />
       ) : (
         <div className="aspect-[3/2] rounded-sm bg-zinc-100 dark:bg-zinc-900" />

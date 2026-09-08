@@ -6,7 +6,14 @@ import { StatisticsBar } from "./StatisticsBar";
 const FALLBACK_WIDTH = 640;
 const FALLBACK_HEIGHT = 427;
 
-export function TrailVisitCard({ visit }: { visit: TrailVisit }) {
+export function TrailVisitCard({
+  visit,
+  priority = false,
+}: {
+  visit: TrailVisit;
+  // The first card above the fold on a grid is that page's LCP candidate.
+  priority?: boolean;
+}) {
   return (
     <li>
       <Link href={`/e/${visit.authorHandle}/${visit.entrySlug}`} className="group block">
@@ -18,6 +25,7 @@ export function TrailVisitCard({ visit }: { visit: TrailVisit }) {
             height={visit.leadPhoto.height ?? FALLBACK_HEIGHT}
             alt=""
             className="rounded-sm"
+            priority={priority}
           />
         ) : (
           <div className="aspect-[3/2] rounded-sm bg-zinc-100 dark:bg-zinc-900" />

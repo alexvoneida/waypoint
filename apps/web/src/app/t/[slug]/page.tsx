@@ -2,7 +2,7 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { loadTrailPage } from "@/lib/trail-page";
-import { TrailMap } from "@/components/TrailMap";
+import { TrailMapClient } from "@/components/TrailMapClient";
 import { SeasonStrip } from "@/components/SeasonStrip";
 import { TrailVisitCard } from "@/components/TrailVisitCard";
 
@@ -87,19 +87,23 @@ export default async function TrailPage({
 
       {hasVisits && (
         <>
-          <div className="mb-12 h-80 overflow-hidden rounded-md sm:h-[28rem]">
-            <TrailMap tracks={allTracks} />
+          <div className="mb-12">
+            <TrailMapClient tracks={allTracks} />
           </div>
 
           <div className="flex flex-col gap-12">
-            {trail.groups.map((group) => (
+            {trail.groups.map((group, groupIndex) => (
               <section key={group.occurredOn}>
                 <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                   {formatOccurredOn(group.occurredOn)}
                 </h2>
                 <ul className="mt-4 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-                  {group.visits.map((visit) => (
-                    <TrailVisitCard key={`${visit.authorHandle}/${visit.entrySlug}`} visit={visit} />
+                  {group.visits.map((visit, visitIndex) => (
+                    <TrailVisitCard
+                      key={`${visit.authorHandle}/${visit.entrySlug}`}
+                      visit={visit}
+                      priority={groupIndex === 0 && visitIndex === 0}
+                    />
                   ))}
                 </ul>
               </section>

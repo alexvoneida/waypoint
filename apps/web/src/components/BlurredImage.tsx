@@ -17,6 +17,7 @@ export function BlurredImage({
   alt,
   className,
   onClick,
+  priority = false,
 }: {
   src: string;
   blurHash: string | null;
@@ -25,6 +26,10 @@ export function BlurredImage({
   alt: string;
   className?: string;
   onClick?: () => void;
+  // Set for the single above-the-fold image a page leads with - its LCP
+  // candidate - so it is fetched eagerly and at high priority instead of
+  // competing with everything else below the fold, which stays lazy.
+  priority?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loaded, setLoaded] = useState(false);
@@ -73,7 +78,8 @@ export function BlurredImage({
         alt={alt}
         width={width}
         height={height}
-        loading="lazy"
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
         onLoad={() => setLoaded(true)}
         style={{
           position: "absolute",
