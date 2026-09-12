@@ -190,6 +190,39 @@ The full write-up, aimed at a non-engineer, is the site's `/how-it-works`
 page ([source](apps/web/src/app/how-it-works/page.tsx)). This section is
 the same algorithm from the implementer's side.
 
+## Deriving trail identity from overlapping tracks
+
+Trails aren't typed in by users or matched against OpenStreetMap — they
+emerge from the tracks themselves. When a new activity's geometry
+substantially overlaps an existing trail, it joins that trail; otherwise
+it founds a new one.
+
+**Why not the obvious alternatives?** Freeform names don't aggregate —
+"Mt. Sanitas" and "Sanitas Ridge" become different trails, and the trail
+page (the point of the feature) degrades to a tag. OpenStreetMap gives
+real names but brings ingest, licensing, coverage gaps, and a matching
+problem arguably harder than clustering the geometry directly.
+
+**Matching is bidirectional on purpose.** For each candidate trail
+(narrowed first with `ST_Intersects` against a GiST-indexed bounding box),
+the engine scores what fraction of the new track falls inside a 40m
+buffer of the trail, *and* what fraction of the trail falls inside a 40m
+buffer of the new track:
+
+- Both above 0.80 → same trail, linked automatically.
+- Between 0.35 and 0.80 → suggested link, confirmed in the studio.
+- Below 0.35 → a new trail.
+
+A one-directional test would merge a 2km spur into a 20km traverse it
+happens to share. The hard case this catches: a summit push that is a
+strict *prefix* of a longer traverse to a second peak scores high one
+direction and low the other, which a single overlap fraction can't tell
+apart from a genuine match. A labeled fixture set of GPX pairs — same
+route in both directions, out-and-back versus one-way, a shared trailhead
+diverging at 1km, and the prefix case above — exists precisely because
+this is the one place a threshold change could silently merge two real
+trails.
+
 ## Getting started
 
 Requires Node 20+, Docker, and `exiftool` (`brew install exiftool`).
