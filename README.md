@@ -1,12 +1,12 @@
 # Waypoint
 
 Dedicated cameras take the best photographs and record the worst metadata. A mirrorless body
-writes a capture timestamp and nothing else; the GPS track of the same walk lives in a watch.
-Waypoint joins the two — it correlates photo capture times against a GPS track to place every
-frame on the route, then builds a journal of outings and trail pages that accumulate visits
-over time.
+writes a capture timestamp and nothing else. The GPS track from the same walk lives in a
+watch. Waypoint joins the two: it correlates photo capture times against a GPS track, places
+every frame on the route, then builds a journal of outings and trail pages that accumulate
+visits over time.
 
-Signup is closed while the product is in beta; accounts are created from invite codes.
+Signup is closed for now. Accounts come from invite codes while the product is in beta.
 
 ## Stack
 
@@ -18,8 +18,9 @@ Signup is closed while the product is in beta; accounts are created from invite 
 | Maps | MapLibre GL + MapTiler |
 | Background jobs | Inngest |
 
-The correlation engine is a dependency-free TypeScript library with no database or DOM
-coupling, so it is unit-testable against fixtures and can later run on a native client.
+The correlation engine has no database or DOM coupling and depends on nothing but the
+standard library. That's what makes it unit-testable against fixtures, and it's why I can
+run it on a native client someday without rewriting it.
 
 ## Layout
 
@@ -33,9 +34,8 @@ fixtures/            GPX tracks and JPGs used by the test suite (untracked)
 
 ## Architecture
 
-Four pieces, chosen so a 30&nbsp;MB photo batch and a rate-limited third-party
-API never sit in the request path of a page a stranger is loading from a
-shared link.
+Four pieces. The split exists so a 30&nbsp;MB photo batch and a rate-limited third-party API
+never sit in the request path of a page a stranger is loading from a shared link.
 
 ```mermaid
 flowchart LR
@@ -51,24 +51,22 @@ flowchart LR
     Worker -- "OAuth + activity streams" --> Strava[Strava API]
 ```
 
-- **Public site** and **studio** are the same Next.js deployment, split by
-  whether a route is session-gated. Public pages are statically generated
-  and revalidated on publish, so a burst of traffic from a shared link never
-  touches Postgres — likes and comments are the one exception, fetched
-  client-side into reserved space rather than baked into the page (see
-  below).
-- **The worker** (Inngest) owns everything that shouldn't block an HTTP
-  response: EXIF extraction, image derivatives, correlation, trail
-  matching, and the paginated Strava backfill. Nothing in this list runs in
-  a Vercel function.
-- **R2** takes uploads directly from the browser via presigned URLs, so an
-  original photo never passes through a serverless request body.
+- **Public site** and **studio** are the same Next.js deployment, split by whether a route
+  needs a session. Public pages are statically generated and revalidated on publish, so a
+  burst of traffic from a shared link never touches Postgres. Likes and comments are the one
+  exception; see below for why.
+- **The worker** (Inngest) owns everything I didn't want blocking an HTTP response: EXIF
+  extraction, image derivatives, correlation, trail matching, and the paginated Strava
+  backfill. None of that runs in a Vercel function.
+- **R2** takes uploads directly from the browser through a presigned URL. An original photo
+  never passes through a serverless request body, so I don't have to worry about a 30MB file
+  hitting a function's payload limit.
 
 ### The job graph
 
-Correlation is a fan-in: it can't resolve a timezone offset from one
-photograph in isolation, so it waits for every photo in a batch to have an
-extracted timestamp *and* for the track to finish parsing before it runs.
+Correlation can't resolve a timezone offset from one photograph on its own, so it's a fan-in:
+it waits for every photo in a batch to have an extracted timestamp, and for the track to
+finish parsing, before it runs.
 
 ```mermaid
 flowchart LR
@@ -90,47 +88,42 @@ flowchart LR
     end
 ```
 
-A failed EXIF read marks that one photo `failed` and excludes it from
-offset scoring rather than blocking the batch — a batch-level decision like
-the timezone search below can't be made photo-by-photo, so one bad file
-should not stall the rest.
+A failed EXIF read just marks that one photo `failed` and drops it from offset scoring. It
+doesn't block the batch. I didn't want one bad file stalling the rest, especially on a
+decision that has to look at the whole batch anyway (see the timezone search below).
 
-### Why likes and comments are not baked into the page
+### Why likes and comments aren't baked into the page
 
-Entry pages are read far more often than they're written to, so they're
-statically generated. Likes and comments are the opposite — they change
-whenever someone visits — and a counter baked into the static HTML would
-mean regenerating the page on every like. So the page ships without them
-and fetches `/api/entries/:id/social` on mount into a reserved space:
-the expensive thing (the page) stays cached, the cheap thing (a count)
-stays fresh, and nothing shifts on arrival.
+Entry pages get read far more than they get written to, so they're statically generated.
+Likes and comments are the opposite: they change every time someone visits. Baking a counter
+into the static HTML would mean regenerating the page on every like, so the page ships
+without them and fetches `/api/entries/:id/social` on mount into a reserved space instead.
+The expensive thing (the page) stays cached. The cheap thing (a count) stays fresh. Nothing
+shifts on arrival.
 
 ## Correlating photos to a GPS track
 
-This is the hard part, and it lives in `packages/correlation` as a
-dependency-free TypeScript library — no database, no DOM — so it can be
-unit-tested against fixtures and, eventually, run on-device in a native
-client before a photo is ever uploaded.
+This is the hard part, and it's why I built it first. It lives in `packages/correlation` as a
+dependency-free TypeScript library (no database, no DOM), so I can unit-test it against
+fixtures and, eventually, run it on-device in a native client before a photo is ever
+uploaded.
 
-**The problem is timezone, not clock drift.** A camera's `DateTimeOriginal`
-is a naive local timestamp with no zone attached; a GPS track's points are
-UTC. A photo taken at 14:32 in Colorado is six *hours* from its track
-position, not six seconds — so the engine can't just nudge for drift, it
-has to work out what "14:32" meant.
+The problem is timezone, not clock drift. A camera's `DateTimeOriginal` is a naive local
+timestamp with no zone attached, and a GPS track's points are UTC. A photo taken at 14:32 in
+Colorado is six *hours* from its track position, not six seconds. The engine can't just nudge
+for drift. It has to work out what "14:32" meant in the first place.
 
-**It searches rather than asks.** Every real-world UTC offset exists in
-15-minute steps (Nepal is +05:45, Chatham Islands +12:45 — whole hours
-aren't enough), so the engine tries all of them, shifts every photo
-timestamp by each candidate, and scores how many land inside the
-activity's time window.
+So it searches instead of asking. Every real-world UTC offset exists in 15-minute steps
+(Nepal is +05:45, Chatham Islands +12:45, so whole hours aren't enough), and the engine tries
+all of them, shifts every photo timestamp by each candidate, and scores how many land inside
+the activity's time window.
 
-**The search usually doesn't return one answer, and that's expected, not
-a bug.** The naive version of this — return the highest-scoring offset —
-is confidently wrong on the most common input shape: a handful of
-photographs taken in the middle of a multi-hour hike, leaving slack at
-both ends of the window that many adjacent offsets all satisfy equally.
-Measured against real outings, against a real Garmin track and real
-camera frames:
+Here's the part that surprised me: the search usually doesn't return one answer, and that's
+not a bug. Return the highest-scoring offset and stop there, and you get an answer that's
+confidently wrong on the most common shape of input. A handful of photographs taken in the
+middle of a multi-hour hike leaves slack at both ends of the window, and a lot of adjacent
+offsets satisfy that slack equally well. I measured this against real outings, a real Garmin
+track, and real camera frames:
 
 | Outing | Photos | Candidates placing all of them | Admissible range |
 |---|---|---|---|
@@ -138,90 +131,78 @@ camera frames:
 | 7.5 h hike | 6 | 27 of 105 | UTC−9:45 to UTC−3:15 |
 | 12.8 h hike | 1 | 38 of 105 | UTC−12 to UTC−2:45 |
 
-A tiebreak that just picks the candidate closest to UTC — the obvious way
-to make this deterministic — returned **UTC−3:15 for a hike in Colorado**,
-placing every photo on a part of the route walked nearly three hours
-later. So the engine doesn't pick one: it returns the whole **admissible
-set**, and resolves it in order:
+I tried the obvious way to make this deterministic: pick the candidate closest to UTC. It
+returned **UTC−3:15 for a hike in Colorado**, placing every photo on a part of the route
+walked nearly three hours later. So the engine doesn't pick one. It returns the whole
+**admissible set** and resolves it in order:
 
-1. One admissible candidate — done, unambiguous.
-2. Several, and the photo carries an EXIF `OffsetTimeOriginal` tag that
-   falls inside the set — the tag selects within it. The tag never
-   overrides a candidate the track already ruled out.
-3. Several, and no usable tag — take the midpoint, minimizing worst-case
-   error, and flag the result `ambiguous` rather than presenting a guess
-   as a determination.
+1. One admissible candidate: done, unambiguous.
+2. Several, and the photo carries an EXIF `OffsetTimeOriginal` tag that falls inside the set:
+   the tag selects within it. It never overrides a candidate the track already ruled out.
+3. Several, and no usable tag: take the midpoint, which minimizes worst-case error, and flag
+   the result `ambiguous` instead of presenting a guess as a determination.
 
-A photo whose offset was resolved as `ambiguous` has its confidence capped
-at `medium` no matter how tight its interpolation is — the confidence
-signals below describe how well two track points pin down a position
-*given* an offset, and say nothing about whether the offset itself was
-determined or guessed at.
+A photo whose offset came back `ambiguous` gets its confidence capped at `medium`, no matter
+how tight its interpolation is. The confidence signals below describe how well two track
+points pin down a position *given* an offset. They say nothing about whether the offset
+itself was determined or guessed at.
 
-**Position is linear interpolation between the bracketing track points**,
-which is correct here because consecutive points are meters apart and
-curvature is far below GPS noise at that scale — measured on a real
-5.5-hour hike (4384 points): 1s min / 4s median / 18s max interval.
+Position is linear interpolation between the bracketing track points. That's fine here
+because consecutive points are meters apart, and curvature is far below GPS noise at that
+scale. On a real 5.5-hour hike (4384 points), intervals ran 1s min, 4s median, 18s max.
 
-**Confidence is the minimum across two signals**, plus an EXIF GPS
-cross-check where it exists:
+Confidence is the minimum across two signals, plus an EXIF GPS cross-check where one exists:
 
 | Signal | High | Medium | Low |
 |---|---|---|---|
 | Gap between bracketing points | < 15s | 15–120s | > 120s |
 | Speed across that gap | < 1 m/s | 1–3 m/s | > 3 m/s |
 
-A long gap means a tunnel, a canyon wall, or a paused watch. A high speed
-means the track is probably not being walked at all — a shuttle, a
-descent — which is more likely evidence of an offset error than a
-photograph taken mid-stride. Low-confidence positions are computed and
-stored, but not drawn on public pages: the product should not show a
+A long gap usually means a tunnel, a canyon wall, or a paused watch. A high speed usually
+means the track isn't being walked at all: a shuttle, a fast descent. That points at an
+offset error more than a photo taken mid-stride. Low-confidence positions are still computed
+and stored, just not drawn on public pages, because I don't want the product showing a
 location it doesn't trust.
 
-**Two things are free accuracy tests rather than authored fixtures.**
-A phone photo carries its own GPS EXIF; correlating it *as if* it had none
-and comparing the result against its real coordinates validates the
-engine against reality, not against a fixture someone wrote by hand. The
-same idea applies to `OffsetTimeOriginal`: strip it, run the search, and
-assert the recovered offset matches — real cameras, a known answer, zero
-fixture-authoring cost.
+Two of the tests in the suite are free, not authored. A phone photo already carries its own
+GPS EXIF, so correlating it as if it had none and comparing the result against its real
+coordinates checks the engine against reality instead of a fixture someone typed in by hand.
+`OffsetTimeOriginal` gives the same deal: strip it, run the search, and check that the
+recovered offset matches. Real cameras, a known answer, and it cost nothing to write.
 
-The full write-up, aimed at a non-engineer, is the site's `/how-it-works`
-page ([source](apps/web/src/app/how-it-works/page.tsx)). This section is
-the same algorithm from the implementer's side.
+The full write-up, aimed at a non-engineer, is the site's `/how-it-works` page
+([source](apps/web/src/app/how-it-works/page.tsx)). This section is the same algorithm from
+the implementer's side.
 
 ## Deriving trail identity from overlapping tracks
 
-Trails aren't typed in by users or matched against OpenStreetMap — they
-emerge from the tracks themselves. When a new activity's geometry
-substantially overlaps an existing trail, it joins that trail; otherwise
-it founds a new one.
+Trails aren't typed in by users, and they aren't matched against OpenStreetMap. They emerge
+from the tracks themselves: when a new activity's geometry substantially overlaps an existing
+trail, it joins that trail. Otherwise it founds a new one.
 
-**Why not the obvious alternatives?** Freeform names don't aggregate —
-"Mt. Sanitas" and "Sanitas Ridge" become different trails, and the trail
-page (the point of the feature) degrades to a tag. OpenStreetMap gives
-real names but brings ingest, licensing, coverage gaps, and a matching
-problem arguably harder than clustering the geometry directly.
+Why not the obvious alternatives? I considered both. Freeform names don't aggregate: "Mt.
+Sanitas" and "Sanitas Ridge" become different trails, and the trail page (the whole point of
+the feature) degrades to a tag. OpenStreetMap gives real names, but it also brings ingest,
+licensing, coverage gaps, and a matching problem that's arguably harder than just clustering
+the geometry directly.
 
-**Matching is bidirectional on purpose.** For each candidate trail
-(narrowed first with `ST_Intersects` against a GiST-indexed bounding box),
-the engine scores what fraction of the new track falls inside a 40m
-buffer of the trail, *and* what fraction of the trail falls inside a 40m
-buffer of the new track:
+Matching is bidirectional on purpose. For each candidate trail (narrowed first with
+`ST_Intersects` against a GiST-indexed bounding box), the engine scores what fraction of the
+new track falls inside a 40m buffer of the trail, and what fraction of the trail falls inside
+a 40m buffer of the new track:
 
 - Both above 0.80 → same trail, linked automatically.
 - Between 0.35 and 0.80 → suggested link, confirmed in the studio.
 - Below 0.35 → a new trail.
 
-A one-directional test would merge a 2km spur into a 20km traverse it
-happens to share. The hard case this catches: a summit push that is a
-strict *prefix* of a longer traverse to a second peak scores high one
-direction and low the other, which a single overlap fraction can't tell
-apart from a genuine match. A labeled fixture set of GPX pairs — same
-route in both directions, out-and-back versus one-way, a shared trailhead
-diverging at 1km, and the prefix case above — exists precisely because
-this is the one place a threshold change could silently merge two real
-trails.
+A one-directional test would merge a 2km spur into a 20km traverse it happens to share. Here's
+the hard case it actually catches: a summit push that's a strict *prefix* of a longer traverse
+to a second peak scores high in one direction and low in the other, and a single overlap
+fraction can't tell that apart from a genuine match. I built a labeled fixture set of GPX
+pairs for exactly this reason: same route in both directions, out-and-back versus one-way, a
+shared trailhead diverging at 1km, and the prefix case above. This is the one place a
+threshold change could quietly merge two real trails into one, and I'd rather catch that in a
+test than on a live trail page.
 
 ## Getting started
 
@@ -235,24 +216,21 @@ npm run verify     # checks the toolchain, the database, and the fixtures
 npm run dev
 ```
 
-`npm run verify` checks the toolchain, the database, and the fixture set
-before you start.
+Run `npm run verify` first. It checks the toolchain, the database, and the fixture set so you
+don't find out something's missing halfway through `npm run dev`.
 
 ## Testing
 
-The correlation engine gets the deepest coverage in the repo — it's a pure
-function over timestamps and coordinates, which makes it unusually
-testable and unusually easy to break silently, since a wrong answer still
-looks like a plausible point on a map:
+The correlation engine gets the deepest coverage in the repo. It's a pure function over
+timestamps and coordinates, which makes it unusually testable, and unusually easy to break
+silently, since a wrong answer still looks like a plausible point on a map.
 
 ```sh
 npm test --workspace @waypoint/correlation   # unit + property-based tests
 ```
 
-Property-based tests generate a random track and a random true offset,
-shift photo timestamps by it, and assert the true offset is always a
-member of the recovered admissible set (not necessarily the sole member —
-see above for why that weaker property is the correct one to assert).
-Access control gets its own dedicated suite for the same reason a
-photography site cares about privacy: it's the one area where a bug isn't
-merely embarrassing.
+The property-based tests generate a random track and a random true offset, shift the photo
+timestamps by it, and check that the true offset is always a member of the recovered
+admissible set. Not necessarily the sole member; see above for why that weaker property is
+the correct one to assert. Access control gets its own dedicated suite for a similar reason.
+It's the one area where a bug isn't just embarrassing.
