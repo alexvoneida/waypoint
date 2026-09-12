@@ -56,6 +56,11 @@ jobs:
             psql "$DATABASE_ADMIN_URL" -v ON_ERROR_STOP=1 -f "$f"
           done
 
+      # tsc treats `LayoutProps`/`PageProps` as ambient globals, but Next only
+      # writes their definitions to .next/types on a build or here -- a fresh
+      # checkout has no .next/ (it's gitignored), so typecheck fails without
+      # this even though it passes locally once you've ever run `next dev`.
+      - run: npm run typegen --workspace @waypoint/web
       - run: npm run lint
       - run: npm run typecheck
 
