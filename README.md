@@ -235,5 +235,24 @@ npm run verify     # checks the toolchain, the database, and the fixtures
 npm run dev
 ```
 
-`npm run verify` is the machine-checked half of the current build phase; see
-[PHASE-0.md](PHASE-0.md) for the rest.
+`npm run verify` checks the toolchain, the database, and the fixture set
+before you start.
+
+## Testing
+
+The correlation engine gets the deepest coverage in the repo — it's a pure
+function over timestamps and coordinates, which makes it unusually
+testable and unusually easy to break silently, since a wrong answer still
+looks like a plausible point on a map:
+
+```sh
+npm test --workspace @waypoint/correlation   # unit + property-based tests
+```
+
+Property-based tests generate a random track and a random true offset,
+shift photo timestamps by it, and assert the true offset is always a
+member of the recovered admissible set (not necessarily the sole member —
+see above for why that weaker property is the correct one to assert).
+Access control gets its own dedicated suite for the same reason a
+photography site cares about privacy: it's the one area where a bug isn't
+merely embarrassing.
