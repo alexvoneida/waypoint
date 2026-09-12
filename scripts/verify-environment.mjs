@@ -42,11 +42,14 @@ function loadEnv() {
 }
 
 function checkNodeVersion() {
-  const major = Number(process.versions.node.split('.')[0]);
-  if (major >= 20) {
+  const [major, minor] = process.versions.node.split('.').map(Number);
+  // packages/correlation's tests run with --experimental-strip-types, added
+  // in Node 22.6.0; anything older rejects the flag outright rather than
+  // failing a test.
+  if (major > 22 || (major === 22 && minor >= 6)) {
     pass('node version', `v${process.versions.node}`);
   } else {
-    fail('node version', `v${process.versions.node} - need >= 20`);
+    fail('node version', `v${process.versions.node} - need >= 22.6`);
   }
 }
 

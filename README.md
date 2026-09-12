@@ -206,7 +206,7 @@ test than on a live trail page.
 
 ## Getting started
 
-Requires Node 20+, Docker, and `exiftool` (`brew install exiftool`).
+Requires Node 22.6+, Docker, and `exiftool` (`brew install exiftool`).
 
 ```sh
 npm install

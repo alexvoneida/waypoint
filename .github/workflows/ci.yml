@@ -42,7 +42,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # packages/correlation's tests use --experimental-strip-types,
+          # added in Node 22.6.0 -- Node 20 rejects the flag outright.
+          node-version: 22
           cache: npm
 
       - run: npm ci
