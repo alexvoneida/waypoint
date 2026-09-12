@@ -1,6 +1,8 @@
 # Product requirements and working notes — deliberately untracked
 docs/
 PHASE-*.md
+DEPLOY.md
+AGENTS.md
 
 # Dependencies
 node_modules/
