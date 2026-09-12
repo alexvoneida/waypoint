@@ -10,7 +10,7 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   const ip = clientIp(request);
-  const limit = checkRateLimit(`waitlist:${ip}`, { limit: 3, windowMs: 60 * 60 * 1000 });
+  const limit = await checkRateLimit(`waitlist:${ip}`, { limit: 3, windowMs: 60 * 60 * 1000 });
   if (!limit.allowed) {
     return jsonError(429, "Too many attempts. Try again later.", {
       retryAfterSeconds: limit.retryAfterSeconds,

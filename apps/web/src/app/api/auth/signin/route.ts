@@ -22,8 +22,8 @@ export async function POST(request: NextRequest) {
   const { email, password } = parsed.data;
 
   const ip = clientIp(request);
-  const ipLimit = checkRateLimit(`signin:ip:${ip}`, { limit: 10, windowMs: 15 * 60 * 1000 });
-  const emailLimit = checkRateLimit(`signin:email:${email.toLowerCase()}`, {
+  const ipLimit = await checkRateLimit(`signin:ip:${ip}`, { limit: 10, windowMs: 15 * 60 * 1000 });
+  const emailLimit = await checkRateLimit(`signin:email:${email.toLowerCase()}`, {
     limit: 10,
     windowMs: 15 * 60 * 1000,
   });

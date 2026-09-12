@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # postgis/postgis publishes amd64 only (see db/Dockerfile), which matches
+    # this runner, so the published image is used directly instead of
+    # rebuilding db/Dockerfile on every run. Credentials and database name
+    # match docker-compose.yml's dev defaults so the migrations and test
+    # scripts, which fall back to those same defaults, need no extra wiring.
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: waypoint
+          POSTGRES_PASSWORD: waypoint
+          POSTGRES_DB: waypoint
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U waypoint -d waypoint"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_ADMIN_URL: postgresql://waypoint:waypoint@localhost:5432/waypoint
+      DATABASE_URL: postgresql://waypoint_app:waypoint-app-dev-only@localhost:5432/waypoint
+      # Not a real secret -- 32 zero bytes, base64-encoded, so routes that
+      # touch Strava token encryption don't throw for want of a key. No
+      # Strava code path runs in this workflow, but the app boots the same
+      # way in dev and in CI either way.
+      STRAVA_TOKEN_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      WAYPOINT_BASE_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply migrations
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          for f in $(ls db/migrations/*.sql | sort); do
+            echo "applying $f"
+            psql "$DATABASE_ADMIN_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - run: npm run lint
+      - run: npm run typecheck
+
+      # Runs @waypoint/correlation's suite (the only workspace with a "test"
+      # script) -- dependency-free, no database needed.
+      - run: npm test
+
+      # Proves cross-account isolation against the database just migrated,
+      # connecting as waypoint_app the same way the application does.
+      - run: node scripts/test-rls.mjs
+
+      # scripts/test-trail-match.mjs and scripts/test-osm-names.mjs are
+      # intentionally not run here: both need fixture files
+      # (fixtures/gpx, fixtures/trail-pairs, fixtures/osm) that are
+      # gitignored on purpose (personal photography and large GPS binaries --
+      # see fixtures/README.md) and so are not present in a fresh checkout.
+
+      - run: npm run build
+
+      - name: Start the app
+        run: |
+          npm start --workspace @waypoint/web &
+          echo $! > /tmp/waypoint-server.pid
+          for i in $(seq 1 30); do
+            if curl -sf "$WAYPOINT_BASE_URL/api/me" -o /dev/null -w '%{http_code}' | grep -q 401; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "server did not become ready in time"
+          exit 1
+
+      # These three need a running server and the migrated database, but no
+      # fixture files -- each seeds and cleans up its own rows.
+      - run: node scripts/test-photos-api.mjs
+      - run: node scripts/test-social-api.mjs
+      - run: node scripts/test-visibility-api.mjs
+
+      - name: Stop the app
+        if: always()
+        run: kill "$(cat /tmp/waypoint-server.pid)" 2>/dev/null || true

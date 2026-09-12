@@ -18,7 +18,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   // Per user rather than per IP: this endpoint needs a session, so the
   // account is the identity worth budgeting, and one account behind a
   // changing address is the case a per-IP window would miss.
-  const limit = checkRateLimit(`comments:${userId}`, { limit: 10, windowMs: 60 * 1000 });
+  const limit = await checkRateLimit(`comments:${userId}`, { limit: 10, windowMs: 60 * 1000 });
   if (!limit.allowed) {
     return jsonError(429, "Too many comments. Try again shortly.", {
       retryAfterSeconds: limit.retryAfterSeconds,

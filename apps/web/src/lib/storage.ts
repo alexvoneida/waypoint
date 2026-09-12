@@ -104,6 +104,12 @@ export async function putObjectBytes(
   );
 }
 
+// For the health check: proves the bucket is reachable with these
+// credentials without creating anything, unlike ensureBucket below.
+export async function pingBucket(): Promise<void> {
+  await getClient().send(new HeadBucketCommand({ Bucket: getBucket() }));
+}
+
 // Lets a fresh developer machine (or this repo's own test-pipeline.mjs) work
 // against MinIO with no manual bucket-creation step. Production R2 buckets
 // are created once, out of band, so this is a no-op there after the first run.

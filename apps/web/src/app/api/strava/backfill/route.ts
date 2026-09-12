@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   // the application's shared 15-minute budget. The job's own per-user
   // concurrency limit stops two scans overlapping; this stops the queue
   // filling with runs that would each start by re-listing the same pages.
-  const limit = checkRateLimit(`strava:backfill:${userId}`, {
+  const limit = await checkRateLimit(`strava:backfill:${userId}`, {
     limit: 3,
     windowMs: 15 * 60 * 1000,
   });
