@@ -105,6 +105,91 @@ and fetches `/api/entries/:id/social` on mount into a reserved space:
 the expensive thing (the page) stays cached, the cheap thing (a count)
 stays fresh, and nothing shifts on arrival.
 
+## Correlating photos to a GPS track
+
+This is the hard part, and it lives in `packages/correlation` as a
+dependency-free TypeScript library — no database, no DOM — so it can be
+unit-tested against fixtures and, eventually, run on-device in a native
+client before a photo is ever uploaded.
+
+**The problem is timezone, not clock drift.** A camera's `DateTimeOriginal`
+is a naive local timestamp with no zone attached; a GPS track's points are
+UTC. A photo taken at 14:32 in Colorado is six *hours* from its track
+position, not six seconds — so the engine can't just nudge for drift, it
+has to work out what "14:32" meant.
+
+**It searches rather than asks.** Every real-world UTC offset exists in
+15-minute steps (Nepal is +05:45, Chatham Islands +12:45 — whole hours
+aren't enough), so the engine tries all of them, shifts every photo
+timestamp by each candidate, and scores how many land inside the
+activity's time window.
+
+**The search usually doesn't return one answer, and that's expected, not
+a bug.** The naive version of this — return the highest-scoring offset —
+is confidently wrong on the most common input shape: a handful of
+photographs taken in the middle of a multi-hour hike, leaving slack at
+both ends of the window that many adjacent offsets all satisfy equally.
+Measured against real outings, against a real Garmin track and real
+camera frames:
+
+| Outing | Photos | Candidates placing all of them | Admissible range |
+|---|---|---|---|
+| 5.5 h hike | 2 | 24 of 105 | UTC−9 to UTC−3:15 |
+| 7.5 h hike | 6 | 27 of 105 | UTC−9:45 to UTC−3:15 |
+| 12.8 h hike | 1 | 38 of 105 | UTC−12 to UTC−2:45 |
+
+A tiebreak that just picks the candidate closest to UTC — the obvious way
+to make this deterministic — returned **UTC−3:15 for a hike in Colorado**,
+placing every photo on a part of the route walked nearly three hours
+later. So the engine doesn't pick one: it returns the whole **admissible
+set**, and resolves it in order:
+
+1. One admissible candidate — done, unambiguous.
+2. Several, and the photo carries an EXIF `OffsetTimeOriginal` tag that
+   falls inside the set — the tag selects within it. The tag never
+   overrides a candidate the track already ruled out.
+3. Several, and no usable tag — take the midpoint, minimizing worst-case
+   error, and flag the result `ambiguous` rather than presenting a guess
+   as a determination.
+
+A photo whose offset was resolved as `ambiguous` has its confidence capped
+at `medium` no matter how tight its interpolation is — the confidence
+signals below describe how well two track points pin down a position
+*given* an offset, and say nothing about whether the offset itself was
+determined or guessed at.
+
+**Position is linear interpolation between the bracketing track points**,
+which is correct here because consecutive points are meters apart and
+curvature is far below GPS noise at that scale — measured on a real
+5.5-hour hike (4384 points): 1s min / 4s median / 18s max interval.
+
+**Confidence is the minimum across two signals**, plus an EXIF GPS
+cross-check where it exists:
+
+| Signal | High | Medium | Low |
+|---|---|---|---|
+| Gap between bracketing points | < 15s | 15–120s | > 120s |
+| Speed across that gap | < 1 m/s | 1–3 m/s | > 3 m/s |
+
+A long gap means a tunnel, a canyon wall, or a paused watch. A high speed
+means the track is probably not being walked at all — a shuttle, a
+descent — which is more likely evidence of an offset error than a
+photograph taken mid-stride. Low-confidence positions are computed and
+stored, but not drawn on public pages: the product should not show a
+location it doesn't trust.
+
+**Two things are free accuracy tests rather than authored fixtures.**
+A phone photo carries its own GPS EXIF; correlating it *as if* it had none
+and comparing the result against its real coordinates validates the
+engine against reality, not against a fixture someone wrote by hand. The
+same idea applies to `OffsetTimeOriginal`: strip it, run the search, and
+assert the recovered offset matches — real cameras, a known answer, zero
+fixture-authoring cost.
+
+The full write-up, aimed at a non-engineer, is the site's `/how-it-works`
+page ([source](apps/web/src/app/how-it-works/page.tsx)). This section is
+the same algorithm from the implementer's side.
+
 ## Getting started
 
 Requires Node 20+, Docker, and `exiftool` (`brew install exiftool`).
